@@ -1,0 +1,36 @@
+# Конфиги с секретными ключами — НИКОГДА не пушить
+telegram_bot/config.py
+telegram_bot/prompt_overrides.json
+
+# Данные которые меняются в рантайме
+telegram_bot/posted_ids.json
+telegram_bot/saved_posts.json
+telegram_bot/used_topics.json
+telegram_bot/C:Tempbot_log.txt
+
+# Фото продуктов (большие бинарные файлы)
+telegram_bot/telegram_botproduct_images/
+
+# Тестовые файлы
+telegram_bot/test_*.py
+telegram_bot/test_*.png
+
+# Python кэш
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Логи
+*.log
+*.txt
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
