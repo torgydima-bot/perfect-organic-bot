@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfect Organic Bot — Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f1117; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+header { background: #1a1d2e; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3250; }
+header h1 { font-size: 18px; color: #fff; }
+header a { color: #888; font-size: 13px; text-decoration: none; }
+header a:hover { color: #fff; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+.grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+.card { background: #1a1d2e; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+.card h2 { font-size: 15px; color: #aaa; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Status */
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+.status-dot.on { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
+.status-dot.off { background: #f44336; }
+.status-text { font-size: 18px; font-weight: 600; color: #fff; }
+.uptime { font-size: 12px; color: #666; margin-top: 6px; }
+
+/* Buttons */
+.btn { display: inline-block; padding: 10px 18px; border-radius: 10px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; margin: 4px 4px 4px 0; transition: all 0.15s; }
+.btn-primary { background: #4f8ef7; color: #fff; }
+.btn-primary:hover { background: #3a7de0; }
+.btn-success { background: #2d6a4f; color: #fff; }
+.btn-success:hover { background: #1b4332; }
+.btn-danger { background: #7f1d1d; color: #fff; }
+.btn-danger:hover { background: #991b1b; }
+.btn-warning { background: #78350f; color: #fff; }
+.btn-warning:hover { background: #92400e; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Logs */
+.logs-box { background: #0f1117; border-radius: 10px; padding: 14px; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.6; color: #a0aec0; height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.logs-box .err { color: #fc8181; }
+.logs-box .warn { color: #f6ad55; }
+.logs-box .ok { color: #68d391; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: #2d3250; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; z-index: 999; }
+.toast.show { display: block; animation: fadeIn 0.2s; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Posts */
+.post-item { background: #0f1117; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.post-item .post-meta { font-size: 12px; color: #666; margin-bottom: 8px; }
+.post-item .post-body { font-size: 13px; color: #ccc; white-space: pre-wrap; max-height: 120px; overflow: hidden; position: relative; }
+.post-item .post-body::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, #0f1117); }
+.post-item .post-footer { margin-top: 10px; display: flex; gap: 8px; }
+.empty { color: #555; text-align: center; padding: 40px; font-size: 14px; }
+
+.refresh-btn { float: right; background: none; border: 1px solid #2d3250; color: #888; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.refresh-btn:hover { border-color: #4f8ef7; color: #4f8ef7; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Perfect Organic Bot</h1>
+  <a href="/logout">Выйти</a>
+</header>
+
+<div class="container">
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <!-- Status -->
+      <div class="card">
+        <h2>Статус</h2>
+        <div id="status-display">
+          <span class="status-dot" id="dot"></span>
+          <span class="status-text" id="status-text">Загрузка...</span>
+        </div>
+        <div class="uptime" id="uptime"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card">
+        <h2>Управление</h2>
+        <button class="btn btn-success" onclick="botAction('start')">Запустить</button>
+        <button class="btn btn-warning" onclick="botAction('restart')">Перезапустить</button>
+        <button class="btn btn-danger" onclick="botAction('stop')">Остановить</button>
+        <hr style="border-color:#2d3250; margin: 14px 0;">
+        <button class="btn btn-primary" onclick="updateCode()">Обновить код с GitHub</button>
+      </div>
+
+      <!-- Quick info -->
+      <div class="card">
+        <h2>Инфо</h2>
+        <div style="font-size:13px; color:#888; line-height:2;">
+          <div>Канал: <span style="color:#fff">@perfektorganic</span></div>
+          <div>Сервер: <span style="color:#fff">77.73.233.5</span></div>
+          <div>Пост в: <span style="color:#fff">12:02 Красноярск</span></div>
+          <div>Автообновление: <span style="color:#4caf50">каждые 5 мин</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <!-- Logs -->
+      <div class="card">
+        <button class="refresh-btn" onclick="loadLogs()">Обновить</button>
+        <h2>Логи</h2>
+        <div class="logs-box" id="logs">Загрузка...</div>
+      </div>
+
+      <!-- Saved posts -->
+      <div class="card">
+        <button class="refresh-btn" onclick="loadPosts()">Обновить</button>
+        <h2>Сохранённые посты</h2>
+        <div id="posts-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function loadStatus() {
+  const r = await fetch('/api/status');
+  const d = await r.json();
+  const dot = document.getElementById('dot');
+  const text = document.getElementById('status-text');
+  const uptime = document.getElementById('uptime');
+  dot.className = 'status-dot ' + (d.running ? 'on' : 'off');
+  text.textContent = d.running ? 'Работает' : 'Остановлен';
+  if (d.uptime) uptime.textContent = 'С ' + d.uptime.replace('ActiveEnterTimestamp=', '');
+}
+
+async function loadLogs() {
+  const r = await fetch('/api/logs?lines=80');
+  const d = await r.json();
+  const box = document.getElementById('logs');
+  const lines = d.logs.split('\n').map(line => {
+    if (line.includes('ERROR') || line.includes('error') || line.includes('Traceback')) {
+      return `<span class="err">${escHtml(line)}</span>`;
+    } else if (line.includes('WARNING') || line.includes('warn')) {
+      return `<span class="warn">${escHtml(line)}</span>`;
+    } else if (line.includes('Started') || line.includes('успешно') || line.includes('OK')) {
+      return `<span class="ok">${escHtml(line)}</span>`;
+    }
+    return escHtml(line);
+  });
+  box.innerHTML = lines.join('\n');
+  box.scrollTop = box.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function botAction(action) {
+  const r = await fetch(`/api/${action}`, {method: 'POST'});
+  const d = await r.json();
+  showToast(d.message);
+  setTimeout(loadStatus, 1500);
+  setTimeout(loadLogs, 2000);
+}
+
+async function updateCode() {
+  showToast('Обновляю код...');
+  const r = await fetch('/api/update', {method: 'POST'});
+  const d = await r.json();
+  showToast(d.message.split('\n').pop() || 'Обновлено');
+  setTimeout(loadStatus, 2000);
+  setTimeout(loadLogs, 2500);
+}
+
+async function loadPosts() {
+  const r = await fetch('/api/saved_posts');
+  const d = await r.json();
+  const container = document.getElementById('posts-list');
+  if (!d.posts || d.posts.length === 0) {
+    container.innerHTML = '<div class="empty">Нет сохранённых постов</div>';
+    return;
+  }
+  container.innerHTML = d.posts.map((p, i) => `
+    <div class="post-item" id="post-${i}">
+      <div class="post-meta">${p.day_name || ''} &bull; ${p.post_type || ''} ${p.photo_url ? '&bull; с фото' : ''}</div>
+      <div class="post-body">${escHtml(p.caption || p.text || '')}</div>
+      <div class="post-footer">
+        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px;" onclick="deletePost(${i})">Удалить</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deletePost(index) {
+  await fetch(`/api/delete_post/${index}`, {method: 'POST'});
+  showToast('Пост удалён');
+  loadPosts();
+}
+
+// Init
+loadStatus();
+loadLogs();
+loadPosts();
+setInterval(loadStatus, 10000);
+setInterval(loadLogs, 30000);
+</script>
+</body>
+</html>
