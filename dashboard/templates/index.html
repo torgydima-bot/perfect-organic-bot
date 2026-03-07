@@ -3,122 +3,284 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Perfect Organic Bot — Dashboard</title>
+<title>Perfect Organic Bot</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #0f1117; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
-header { background: #1a1d2e; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3250; }
-header h1 { font-size: 18px; color: #fff; }
-header a { color: #888; font-size: 13px; text-decoration: none; }
+header { background: #1a1d2e; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3250; position: sticky; top: 0; z-index: 100; }
+header h1 { font-size: 17px; color: #fff; }
+.nav { display: flex; gap: 4px; }
+.nav button { background: none; border: none; color: #888; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.nav button.active, .nav button:hover { background: #2d3250; color: #fff; }
+header a { color: #555; font-size: 12px; text-decoration: none; }
 header a:hover { color: #fff; }
-.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
-.grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+.page { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
+.page.active { display: block; }
 
+/* Cards */
 .card { background: #1a1d2e; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
-.card h2 { font-size: 15px; color: #aaa; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+.card h2 { font-size: 13px; color: #666; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Grid */
+.grid2 { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+@media(max-width:800px) { .grid2 { grid-template-columns: 1fr; } }
 
 /* Status */
-.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
-.status-dot.on { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
-.status-dot.off { background: #f44336; }
-.status-text { font-size: 18px; font-weight: 600; color: #fff; }
-.uptime { font-size: 12px; color: #666; margin-top: 6px; }
+.status-row { display: flex; align-items: center; gap: 10px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot.on { background: #4caf50; box-shadow: 0 0 8px #4caf50; }
+.dot.off { background: #f44336; }
+.status-label { font-size: 17px; font-weight: 600; color: #fff; }
+.uptime { font-size: 11px; color: #555; margin-top: 5px; }
 
 /* Buttons */
-.btn { display: inline-block; padding: 10px 18px; border-radius: 10px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; margin: 4px 4px 4px 0; transition: all 0.15s; }
-.btn-primary { background: #4f8ef7; color: #fff; }
-.btn-primary:hover { background: #3a7de0; }
-.btn-success { background: #2d6a4f; color: #fff; }
-.btn-success:hover { background: #1b4332; }
-.btn-danger { background: #7f1d1d; color: #fff; }
-.btn-danger:hover { background: #991b1b; }
-.btn-warning { background: #78350f; color: #fff; }
-.btn-warning:hover { background: #92400e; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 9px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.btn-blue { background: #2563eb; color: #fff; }
+.btn-blue:hover { background: #1d4ed8; }
+.btn-green { background: #166534; color: #fff; }
+.btn-green:hover { background: #14532d; }
+.btn-red { background: #7f1d1d; color: #fff; }
+.btn-red:hover { background: #991b1b; }
+.btn-orange { background: #78350f; color: #fff; }
+.btn-orange:hover { background: #92400e; }
+.btn-gray { background: #1f2937; color: #9ca3af; border: 1px solid #374151; }
+.btn-gray:hover { background: #374151; color: #fff; }
+.btn-purple { background: #4c1d95; color: #fff; }
+.btn-purple:hover { background: #5b21b6; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-sm { padding: 6px 11px; font-size: 12px; }
+
+/* Weekly calendar */
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+@media(max-width:900px) { .week-grid { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:500px) { .week-grid { grid-template-columns: 1fr 1fr; } }
+
+.day-card { background: #0f1117; border-radius: 12px; padding: 14px; border: 1px solid #1f2937; cursor: pointer; transition: all 0.15s; position: relative; }
+.day-card:hover { border-color: #2563eb; }
+.day-card.has-post { border-color: #166534; }
+.day-card.today { border-color: #d97706; }
+.day-name { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+.day-type { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.day-status { margin-top: 10px; }
+.day-badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; }
+.day-badge.ready { background: #14532d; color: #86efac; }
+.day-badge.empty { background: #1f2937; color: #6b7280; }
+.day-badge.today { background: #78350f; color: #fbbf24; }
+
+/* Post editor */
+.editor-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+@media(max-width:900px) { .editor-grid { grid-template-columns: 1fr; } }
+
+textarea { width: 100%; background: #0f1117; border: 1px solid #2d3250; border-radius: 10px; color: #e0e0e0; padding: 12px; font-size: 13px; resize: vertical; outline: none; font-family: inherit; line-height: 1.6; }
+textarea:focus { border-color: #2563eb; }
+input[type=text], input[type=url], select { width: 100%; background: #0f1117; border: 1px solid #2d3250; border-radius: 10px; color: #e0e0e0; padding: 10px 14px; font-size: 13px; outline: none; }
+input:focus, select:focus { border-color: #2563eb; }
+select option { background: #1a1d2e; }
+label { font-size: 12px; color: #888; display: block; margin-bottom: 6px; margin-top: 14px; }
+label:first-child { margin-top: 0; }
+
+/* Photo preview */
+.photo-preview { width: 100%; aspect-ratio: 1; background: #0f1117; border: 1px dashed #2d3250; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.photo-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.photo-preview .placeholder { color: #555; font-size: 13px; text-align: center; padding: 20px; }
+.photo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Prompt input for photo gen */
+.prompt-area { margin-top: 10px; }
 
 /* Logs */
-.logs-box { background: #0f1117; border-radius: 10px; padding: 14px; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.6; color: #a0aec0; height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-.logs-box .err { color: #fc8181; }
-.logs-box .warn { color: #f6ad55; }
-.logs-box .ok { color: #68d391; }
+.logs-box { background: #0f1117; border-radius: 10px; padding: 14px; font-family: 'Consolas', monospace; font-size: 11px; line-height: 1.7; color: #a0aec0; height: 380px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
 
 /* Toast */
-.toast { position: fixed; bottom: 24px; right: 24px; background: #2d3250; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; z-index: 999; }
-.toast.show { display: block; animation: fadeIn 0.2s; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.toast { position: fixed; bottom: 24px; right: 24px; background: #1f2937; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 13px; display: none; z-index: 9999; border: 1px solid #374151; max-width: 320px; }
+.toast.show { display: block; animation: fadeUp 0.2s; }
+.toast.ok { border-color: #166534; }
+.toast.err { border-color: #7f1d1d; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Posts */
-.post-item { background: #0f1117; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
-.post-item .post-meta { font-size: 12px; color: #666; margin-bottom: 8px; }
-.post-item .post-body { font-size: 13px; color: #ccc; white-space: pre-wrap; max-height: 120px; overflow: hidden; position: relative; }
-.post-item .post-body::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, #0f1117); }
-.post-item .post-footer { margin-top: 10px; display: flex; gap: 8px; }
-.empty { color: #555; text-align: center; padding: 40px; font-size: 14px; }
+/* Spinner */
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.refresh-btn { float: right; background: none; border: 1px solid #2d3250; color: #888; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-.refresh-btn:hover { border-color: #4f8ef7; color: #4f8ef7; }
+/* Upload zone */
+.upload-zone { border: 1px dashed #2d3250; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.upload-zone:hover { border-color: #2563eb; background: #111827; }
+.upload-zone input { display: none; }
+.upload-zone p { font-size: 12px; color: #666; margin-top: 6px; }
+
+.char-count { font-size: 11px; color: #555; text-align: right; margin-top: 4px; }
+.char-count.warn { color: #f59e0b; }
+.char-count.over { color: #ef4444; }
+
+hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
+.section-title { font-size: 14px; color: #9ca3af; margin-bottom: 12px; font-weight: 600; }
+.flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>Perfect Organic Bot</h1>
+  <div class="nav">
+    <button class="active" onclick="showPage('queue', this)">Очередь постов</button>
+    <button onclick="showPage('create', this)">Создать пост</button>
+    <button onclick="showPage('system', this)">Система</button>
+  </div>
   <a href="/logout">Выйти</a>
 </header>
 
-<div class="container">
-  <div class="grid">
-    <!-- LEFT COLUMN -->
+<!-- ═══ QUEUE PAGE ═══════════════════════════════════════════════════════ -->
+<div id="page-queue" class="page active">
+  <div class="card">
+    <h2>Недельная очередь</h2>
+    <div class="week-grid" id="week-grid">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- Day detail panel -->
+  <div class="card" id="day-detail" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 id="detail-title">Понедельник</h2>
+      <div class="flex">
+        <button class="btn btn-blue btn-sm" onclick="editDay()">Редактировать</button>
+        <button class="btn btn-green btn-sm" onclick="publishDay()">Опубликовать сейчас</button>
+        <button class="btn btn-red btn-sm" onclick="deleteDay()">Удалить</button>
+      </div>
+    </div>
+    <div id="detail-text" style="font-size:13px; line-height:1.7; color:#ccc; white-space:pre-wrap; max-height:300px; overflow-y:auto;"></div>
+    <div id="detail-photo" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- ═══ CREATE PAGE ══════════════════════════════════════════════════════ -->
+<div id="page-create" class="page">
+  <div class="card">
+    <div class="editor-grid">
+      <!-- LEFT: text -->
+      <div>
+        <div class="section-title">Текст поста</div>
+
+        <div class="flex" style="margin-bottom:14px;">
+          <div style="flex:1;">
+            <label>День недели</label>
+            <select id="create-day">
+              {% for day, name in weekdays.items() %}
+              <option value="{{ day }}">{{ name }} — {{ post_types.get(weekly_schedule.get(day,''), '') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Тип поста</label>
+            <select id="create-type">
+              {% for key, label in post_types.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <label>Тема / ключевые слова (для генерации)</label>
+        <input type="text" id="create-topic" placeholder="например: витамин D, анемия, морской магний...">
+
+        <div class="flex" style="margin-top:10px; margin-bottom:10px;">
+          <button class="btn btn-purple btn-sm" onclick="generateText()" id="btn-gen-text">
+            <span id="gen-text-icon">✨</span> Сгенерировать текст
+          </button>
+        </div>
+
+        <label>Текст поста</label>
+        <textarea id="create-text" rows="14" placeholder="Введите текст поста или нажмите 'Сгенерировать'..." oninput="updateCharCount()"></textarea>
+        <div class="char-count" id="char-count">0 / 1024</div>
+      </div>
+
+      <!-- RIGHT: photo -->
+      <div>
+        <div class="section-title">Фото</div>
+
+        <div class="photo-preview" id="photo-preview">
+          <div class="placeholder">Нет фото<br><small>Загрузи или сгенерируй</small></div>
+        </div>
+
+        <div class="photo-actions">
+          <button class="btn btn-purple btn-sm" onclick="generatePhoto()" id="btn-gen-photo">
+            <span id="gen-photo-icon">🎨</span> Генерировать AI
+          </button>
+          <button class="btn btn-gray btn-sm" onclick="document.getElementById('upload-input').click()">
+            Загрузить
+          </button>
+          <button class="btn btn-gray btn-sm" onclick="clearPhoto()">Убрать</button>
+        </div>
+
+        <input type="file" id="upload-input" accept="image/*" style="display:none" onchange="uploadPhoto(this)">
+
+        <div class="prompt-area">
+          <label>Промпт для генерации фото (необязательно)</label>
+          <input type="text" id="photo-prompt" placeholder="Оставь пустым для автоматического промпта">
+        </div>
+
+        <hr>
+        <label>Или вставь URL фото</label>
+        <input type="url" id="photo-url" placeholder="https://..." oninput="previewFromUrl()">
+
+        <hr>
+        <div class="flex" style="margin-top:4px;">
+          <button class="btn btn-green" onclick="saveToQueue()" style="flex:1;">
+            💾 Сохранить в очередь
+          </button>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn btn-blue" onclick="publishNow()" style="width:100%;">
+            🚀 Опубликовать сейчас
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SYSTEM PAGE ══════════════════════════════════════════════════════ -->
+<div id="page-system" class="page">
+  <div class="grid2">
     <div>
-      <!-- Status -->
       <div class="card">
-        <h2>Статус</h2>
-        <div id="status-display">
-          <span class="status-dot" id="dot"></span>
-          <span class="status-text" id="status-text">Загрузка...</span>
+        <h2>Статус бота</h2>
+        <div class="status-row">
+          <div class="dot" id="dot"></div>
+          <div class="status-label" id="status-text">Загрузка...</div>
         </div>
         <div class="uptime" id="uptime"></div>
       </div>
 
-      <!-- Actions -->
       <div class="card">
         <h2>Управление</h2>
-        <button class="btn btn-success" onclick="botAction('start')">Запустить</button>
-        <button class="btn btn-warning" onclick="botAction('restart')">Перезапустить</button>
-        <button class="btn btn-danger" onclick="botAction('stop')">Остановить</button>
-        <hr style="border-color:#2d3250; margin: 14px 0;">
-        <button class="btn btn-primary" onclick="updateCode()">Обновить код с GitHub</button>
+        <div class="flex">
+          <button class="btn btn-green btn-sm" onclick="botAction('start')">Запустить</button>
+          <button class="btn btn-orange btn-sm" onclick="botAction('restart')">Перезапустить</button>
+          <button class="btn btn-red btn-sm" onclick="botAction('stop')">Остановить</button>
+        </div>
+        <hr>
+        <button class="btn btn-blue btn-sm" onclick="updateCode()">⬇ Обновить код с GitHub</button>
       </div>
 
-      <!-- Quick info -->
       <div class="card">
         <h2>Инфо</h2>
-        <div style="font-size:13px; color:#888; line-height:2;">
+        <div style="font-size:13px; color:#888; line-height:2.2;">
           <div>Канал: <span style="color:#fff">@perfektorganic</span></div>
           <div>Сервер: <span style="color:#fff">77.73.233.5</span></div>
-          <div>Пост в: <span style="color:#fff">12:02 Красноярск</span></div>
+          <div>Пост: <span style="color:#fff">12:02 Красноярск</span></div>
           <div>Автообновление: <span style="color:#4caf50">каждые 5 мин</span></div>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT COLUMN -->
-    <div>
-      <!-- Logs -->
-      <div class="card">
-        <button class="refresh-btn" onclick="loadLogs()">Обновить</button>
-        <h2>Логи</h2>
-        <div class="logs-box" id="logs">Загрузка...</div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="margin:0;">Логи</h2>
+        <button class="btn btn-gray btn-sm" onclick="loadLogs()">Обновить</button>
       </div>
-
-      <!-- Saved posts -->
-      <div class="card">
-        <button class="refresh-btn" onclick="loadPosts()">Обновить</button>
-        <h2>Сохранённые посты</h2>
-        <div id="posts-list"></div>
-      </div>
+      <div class="logs-box" id="logs">Загрузка...</div>
     </div>
   </div>
 </div>
@@ -126,94 +288,297 @@ header a:hover { color: #fff; }
 <div class="toast" id="toast"></div>
 
 <script>
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+// ── State ──────────────────────────────────────────────────────────────────
+let currentDay = null;
+let currentPhotoB64 = "";
+let queueData = {};
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'queue') loadQueue();
+  if (name === 'system') { loadStatus(); loadLogs(); }
 }
 
-async function loadStatus() {
-  const r = await fetch('/api/status');
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── API helper ─────────────────────────────────────────────────────────────
+async function api(url, opts={}) {
+  const r = await fetch(url, {
+    headers: {'Content-Type': 'application/json'},
+    ...opts
+  });
+  return r.json();
+}
+
+// ── Queue page ─────────────────────────────────────────────────────────────
+async function loadQueue() {
+  const d = await api('/api/queue');
+  queueData = d.queue || {};
+  const today = new Date().getDay(); // 0=Sun in JS
+  const todayMon = today === 0 ? 6 : today - 1; // convert to Mon=0
+
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = '';
+  for (let day = 0; day < 7; day++) {
+    const names = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const types = {{ weekly_schedule | tojson }};
+    const typeLabels = {{ post_types | tojson }};
+    const hasPost = !!queueData[day];
+    const isToday = day === todayMon;
+
+    const card = document.createElement('div');
+    card.className = 'day-card' + (hasPost ? ' has-post' : '') + (isToday ? ' today' : '');
+    card.onclick = () => showDayDetail(day);
+    card.innerHTML = `
+      <div class="day-name">${names[day]}${isToday ? ' ●' : ''}</div>
+      <div class="day-type">${typeLabels[types[day]] || ''}</div>
+      <div class="day-status">
+        <span class="day-badge ${hasPost ? 'ready' : (isToday ? 'today' : 'empty')}">
+          ${hasPost ? '✓ Готов' : (isToday ? 'Сегодня' : 'Пусто')}
+        </span>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function showDayDetail(day) {
+  currentDay = day;
+  const names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  const post = queueData[day];
+  const detail = document.getElementById('day-detail');
+  detail.style.display = 'block';
+  document.getElementById('detail-title').textContent = names[day];
+
+  if (post) {
+    document.getElementById('detail-text').textContent = post.text || '';
+    document.getElementById('detail-photo').innerHTML = post.has_photo
+      ? '<div style="font-size:12px;color:#4caf50;">📷 Фото прикреплено</div>' : '';
+  } else {
+    document.getElementById('detail-text').textContent = 'Пост не сохранён для этого дня.';
+    document.getElementById('detail-photo').innerHTML = '';
+  }
+  detail.scrollIntoView({behavior:'smooth'});
+}
+
+function editDay() {
+  if (currentDay === null) return;
+  const post = queueData[currentDay];
+  // switch to create page and prefill
+  document.getElementById('create-day').value = currentDay;
+  if (post) {
+    document.getElementById('create-text').value = post.text || '';
+    updateCharCount();
+  }
+  const names = document.querySelectorAll('.nav button');
+  showPage('create', names[1]);
+}
+
+async function deleteDay() {
+  if (currentDay === null) return;
+  if (!confirm('Удалить пост?')) return;
+  await api(`/api/queue/${currentDay}`, {method:'DELETE'});
+  toast('Пост удалён');
+  document.getElementById('day-detail').style.display = 'none';
+  loadQueue();
+}
+
+async function publishDay() {
+  if (currentDay === null) return;
+  const post = queueData[currentDay];
+  if (!post) { toast('Нет поста для публикации', 'err'); return; }
+  toast('Публикую...');
+  const d = await api('/api/publish_now', {
+    method: 'POST',
+    body: JSON.stringify({text: post.text, photo_b64: ''})
+  });
+  toast(d.message || d.error, d.ok ? 'ok' : 'err');
+}
+
+// ── Create page ────────────────────────────────────────────────────────────
+function updateCharCount() {
+  const text = document.getElementById('create-text').value;
+  const len = text.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${len} / 1024`;
+  el.className = 'char-count' + (len > 1024 ? ' over' : len > 900 ? ' warn' : '');
+}
+
+async function generateText() {
+  const btn = document.getElementById('btn-gen-text');
+  const icon = document.getElementById('gen-text-icon');
+  btn.disabled = true;
+  icon.className = 'spin';
+
+  const d = await api('/api/generate_text', {
+    method: 'POST',
+    body: JSON.stringify({
+      post_type: document.getElementById('create-type').value,
+      topic: document.getElementById('create-topic').value
+    })
+  });
+
+  btn.disabled = false;
+  icon.className = '';
+  icon.textContent = '✨';
+
+  if (d.ok) {
+    document.getElementById('create-text').value = d.text;
+    updateCharCount();
+    toast('Текст сгенерирован!', 'ok');
+  } else {
+    toast('Ошибка: ' + d.error, 'err');
+  }
+}
+
+async function generatePhoto() {
+  const btn = document.getElementById('btn-gen-photo');
+  const icon = document.getElementById('gen-photo-icon');
+  btn.disabled = true;
+  icon.className = 'spin';
+
+  const d = await api('/api/generate_photo', {
+    method: 'POST',
+    body: JSON.stringify({
+      post_type: document.getElementById('create-type').value,
+      prompt: document.getElementById('photo-prompt').value
+    })
+  });
+
+  btn.disabled = false;
+  icon.className = '';
+  icon.textContent = '🎨';
+
+  if (d.ok) {
+    currentPhotoB64 = d.photo_b64;
+    showPhotoPreview('data:image/jpeg;base64,' + d.photo_b64);
+    toast('Фото сгенерировано!', 'ok');
+  } else {
+    toast('Ошибка: ' + d.error, 'err');
+  }
+}
+
+async function uploadPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('photo', file);
+  const r = await fetch('/api/upload_photo', {method:'POST', body: form});
   const d = await r.json();
-  const dot = document.getElementById('dot');
-  const text = document.getElementById('status-text');
-  const uptime = document.getElementById('uptime');
-  dot.className = 'status-dot ' + (d.running ? 'on' : 'off');
-  text.textContent = d.running ? 'Работает' : 'Остановлен';
-  if (d.uptime) uptime.textContent = 'С ' + d.uptime.replace('ActiveEnterTimestamp=', '');
+  if (d.ok) {
+    currentPhotoB64 = d.photo_b64;
+    showPhotoPreview(URL.createObjectURL(file));
+    toast('Фото загружено', 'ok');
+  }
+}
+
+function previewFromUrl() {
+  const url = document.getElementById('photo-url').value.trim();
+  if (url) {
+    currentPhotoB64 = '';
+    showPhotoPreview(url);
+  }
+}
+
+function showPhotoPreview(src) {
+  const preview = document.getElementById('photo-preview');
+  preview.innerHTML = `<img src="${src}" alt="preview" onerror="this.parentElement.innerHTML='<div class=placeholder>Ошибка загрузки</div>'">`;
+}
+
+function clearPhoto() {
+  currentPhotoB64 = '';
+  document.getElementById('photo-url').value = '';
+  document.getElementById('photo-preview').innerHTML = '<div class="placeholder">Нет фото<br><small>Загрузи или сгенерируй</small></div>';
+}
+
+async function saveToQueue() {
+  const text = document.getElementById('create-text').value.trim();
+  if (!text) { toast('Введи текст поста', 'err'); return; }
+
+  const d = await api('/api/queue/save', {
+    method: 'POST',
+    body: JSON.stringify({
+      day: parseInt(document.getElementById('create-day').value),
+      post_type: document.getElementById('create-type').value,
+      text,
+      photo_b64: currentPhotoB64,
+      photo_url: document.getElementById('photo-url').value.trim()
+    })
+  });
+  toast(d.message || d.error, d.ok ? 'ok' : 'err');
+}
+
+async function publishNow() {
+  const text = document.getElementById('create-text').value.trim();
+  if (!text) { toast('Введи текст поста', 'err'); return; }
+  toast('Публикую...');
+  const d = await api('/api/publish_now', {
+    method: 'POST',
+    body: JSON.stringify({
+      text,
+      photo_b64: currentPhotoB64,
+      photo_url: document.getElementById('photo-url').value.trim()
+    })
+  });
+  toast(d.message || d.error, d.ok ? 'ok' : 'err');
+}
+
+// ── System page ────────────────────────────────────────────────────────────
+async function loadStatus() {
+  const d = await api('/api/status');
+  document.getElementById('dot').className = 'dot ' + (d.running ? 'on' : 'off');
+  document.getElementById('status-text').textContent = d.running ? 'Работает' : 'Остановлен';
+  if (d.uptime) document.getElementById('uptime').textContent = 'С ' + d.uptime;
 }
 
 async function loadLogs() {
-  const r = await fetch('/api/logs?lines=80');
-  const d = await r.json();
+  const d = await api('/api/logs?lines=80');
   const box = document.getElementById('logs');
-  const lines = d.logs.split('\n').map(line => {
-    if (line.includes('ERROR') || line.includes('error') || line.includes('Traceback')) {
-      return `<span class="err">${escHtml(line)}</span>`;
-    } else if (line.includes('WARNING') || line.includes('warn')) {
-      return `<span class="warn">${escHtml(line)}</span>`;
-    } else if (line.includes('Started') || line.includes('успешно') || line.includes('OK')) {
-      return `<span class="ok">${escHtml(line)}</span>`;
-    }
-    return escHtml(line);
+  const lines = d.logs.split('\n').map(l => {
+    const s = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (/ERROR|Traceback|error/.test(l)) return `<span style="color:#fc8181">${s}</span>`;
+    if (/WARNING|warn/.test(l)) return `<span style="color:#f6ad55">${s}</span>`;
+    if (/Started|running|OK/.test(l)) return `<span style="color:#68d391">${s}</span>`;
+    return s;
   });
   box.innerHTML = lines.join('\n');
   box.scrollTop = box.scrollHeight;
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 async function botAction(action) {
-  const r = await fetch(`/api/${action}`, {method: 'POST'});
-  const d = await r.json();
-  showToast(d.message);
+  const d = await api(`/api/${action}`, {method:'POST'});
+  toast(d.message, 'ok');
   setTimeout(loadStatus, 1500);
   setTimeout(loadLogs, 2000);
 }
 
 async function updateCode() {
-  showToast('Обновляю код...');
-  const r = await fetch('/api/update', {method: 'POST'});
-  const d = await r.json();
-  showToast(d.message.split('\n').pop() || 'Обновлено');
-  setTimeout(loadStatus, 2000);
-  setTimeout(loadLogs, 2500);
+  toast('Обновляю...');
+  const d = await api('/api/update', {method:'POST'});
+  toast(d.message || 'Обновлено', 'ok');
+  setTimeout(loadStatus, 2500);
 }
 
-async function loadPosts() {
-  const r = await fetch('/api/saved_posts');
-  const d = await r.json();
-  const container = document.getElementById('posts-list');
-  if (!d.posts || d.posts.length === 0) {
-    container.innerHTML = '<div class="empty">Нет сохранённых постов</div>';
-    return;
-  }
-  container.innerHTML = d.posts.map((p, i) => `
-    <div class="post-item" id="post-${i}">
-      <div class="post-meta">${p.day_name || ''} &bull; ${p.post_type || ''} ${p.photo_url ? '&bull; с фото' : ''}</div>
-      <div class="post-body">${escHtml(p.caption || p.text || '')}</div>
-      <div class="post-footer">
-        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px;" onclick="deletePost(${i})">Удалить</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function deletePost(index) {
-  await fetch(`/api/delete_post/${index}`, {method: 'POST'});
-  showToast('Пост удалён');
-  loadPosts();
-}
-
-// Init
-loadStatus();
-loadLogs();
-loadPosts();
-setInterval(loadStatus, 10000);
-setInterval(loadLogs, 30000);
+// ── Init ───────────────────────────────────────────────────────────────────
+loadQueue();
+// sync day type selector when day changes
+document.getElementById('create-day').addEventListener('change', function() {
+  const schedule = {{ weekly_schedule | tojson }};
+  const type = schedule[this.value] || 'expert';
+  document.getElementById('create-type').value = type;
+});
+setInterval(loadStatus, 15000);
 </script>
 </body>
 </html>
