@@ -109,6 +109,16 @@ label:first-child { margin-top: 0; }
 .upload-zone input { display: none; }
 .upload-zone p { font-size: 12px; color: #666; margin-top: 6px; }
 
+/* Stats table */
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table th { text-align: left; color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid #2d3250; }
+.stats-table td { padding: 10px 12px; border-bottom: 1px solid #1f2937; vertical-align: top; }
+.stats-table tr:last-child td { border-bottom: none; }
+.stats-table tr:hover td { background: #111827; }
+.views-badge { display: inline-block; background: #1f2937; border: 1px solid #374151; padding: 3px 9px; border-radius: 6px; font-size: 12px; color: #9ca3af; }
+.views-badge.has { background: #14532d; border-color: #166534; color: #86efac; }
+.type-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; background: #1e3a5f; color: #93c5fd; }
+
 .char-count { font-size: 11px; color: #555; text-align: right; margin-top: 4px; }
 .char-count.warn { color: #f59e0b; }
 .char-count.over { color: #ef4444; }
@@ -125,6 +135,7 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
   <div class="nav">
     <button class="active" onclick="showPage('queue', this)">Очередь постов</button>
     <button onclick="showPage('create', this)">Создать пост</button>
+    <button onclick="showPage('stats', this)">Статистика</button>
     <button onclick="showPage('system', this)">Система</button>
   </div>
   <a href="/logout">Выйти</a>
@@ -240,6 +251,21 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
   </div>
 </div>
 
+<!-- ═══ STATS PAGE ═══════════════════════════════════════════════════════ -->
+<div id="page-stats" class="page">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 style="margin:0;">Опубликованные посты</h2>
+      <button class="btn btn-gray btn-sm" onclick="loadStats()">Обновить</button>
+    </div>
+    <div id="stats-table">Загрузка...</div>
+  </div>
+  <div class="card" style="font-size:12px; color:#666; line-height:2;">
+    <div>📌 <b style="color:#9ca3af;">Просмотры</b> — берутся с публичной страницы канала (последние ~30 постов)</div>
+    <div>🔗 <b style="color:#9ca3af;">Клики по ссылкам</b> — смотри в <b style="color:#fff;">Яндекс Метрике</b> → Источники → UTM-метки → utm_campaign</div>
+  </div>
+</div>
+
 <!-- ═══ SYSTEM PAGE ══════════════════════════════════════════════════════ -->
 <div id="page-system" class="page">
   <div class="grid2">
@@ -300,6 +326,7 @@ function showPage(name, btn) {
   document.getElementById('page-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'queue') loadQueue();
+  if (name === 'stats') loadStats();
   if (name === 'system') { loadStatus(); loadLogs(); }
 }
 
@@ -401,7 +428,7 @@ async function publishDay() {
   toast('Публикую...');
   const d = await api('/api/publish_now', {
     method: 'POST',
-    body: JSON.stringify({text: post.text, photo_b64: ''})
+    body: JSON.stringify({text: post.text, photo_b64: '', post_type: post.post_type || ''})
   });
   toast(d.message || d.error, d.ok ? 'ok' : 'err');
 }
@@ -534,7 +561,38 @@ async function publishNow() {
   toast(d.message || d.error, d.ok ? 'ok' : 'err');
 }
 
-// ── System page ────────────────────────────────────────────────────────────
+// ── Stats page ─────────────────────────────────────────────────────────────
+const POST_TYPE_NAMES = {
+  expert: 'Экспертный', review: 'Отзыв', partner: 'Партнёрский',
+  sales: 'Продающий', lifestyle: 'О компании', viral: 'Вирусный', faq: 'FAQ'
+};
+
+async function loadStats() {
+  document.getElementById('stats-table').innerHTML = '<div style="color:#555;padding:20px 0;">Загрузка просмотров...</div>';
+  const d = await api('/api/stats');
+  const stats = d.stats || [];
+  if (!stats.length) {
+    document.getElementById('stats-table').innerHTML = '<div style="color:#555;padding:20px 0;">Нет опубликованных постов. После публикации через дашборд статистика появится здесь.</div>';
+    return;
+  }
+  const rows = stats.map(s => {
+    const hasViews = s.views && s.views !== '—';
+    const preview = (s.text_preview || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<tr>
+      <td style="white-space:nowrap;color:#888;">${s.date || ''} ${s.time || ''}</td>
+      <td><span class="type-badge">${POST_TYPE_NAMES[s.post_type] || s.post_type || '—'}</span></td>
+      <td><span class="views-badge ${hasViews ? 'has' : ''}">👁 ${s.views || '—'}</span></td>
+      <td style="color:#6b7280;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${preview}">${preview}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('stats-table').innerHTML = `
+    <table class="stats-table">
+      <thead><tr><th>Дата</th><th>Тип</th><th>Просмотры</th><th>Текст</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── System page ─────────────────────────────────────────────────────────────
 async function loadStatus() {
   const d = await api('/api/status');
   document.getElementById('dot').className = 'dot ' + (d.running ? 'on' : 'off');

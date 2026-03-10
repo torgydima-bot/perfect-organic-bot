@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 sys.path.insert(0, "/opt/bot/telegram_bot")
 
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
@@ -8,6 +9,8 @@ import json
 import base64
 import requests
 import functools
+from datetime import datetime
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 app.secret_key = "perfectorganic2026"
@@ -17,6 +20,52 @@ BOT_DIR = "/opt/bot/telegram_bot"
 SERVICE_NAME = "perfectorganic-bot"
 UPLOADS_DIR = "/opt/dashboard/uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
+STATS_FILE = os.path.join(BOT_DIR, "post_stats.json")
+
+
+def load_stats():
+    if os.path.exists(STATS_FILE):
+        with open(STATS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
+def save_stats(stats):
+    with open(STATS_FILE, "w", encoding="utf-8") as f:
+        json.dump(stats, f, ensure_ascii=False, indent=2)
+
+
+def add_utm(text, campaign_date=None):
+    """Добавляет UTM-метки ко всем ссылкам perfect-org.ru в HTML-тексте."""
+    if not campaign_date:
+        campaign_date = datetime.now().strftime("%Y-%m-%d")
+    def replace_link(m):
+        url = m.group(1)
+        sep = "&" if "?" in url else "?"
+        return f'href="{url}{sep}utm_source=telegram&utm_medium=bot&utm_campaign={campaign_date}"'
+    return re.sub(r'href="(https://perfect-org\.ru[^"]*)"', replace_link, text)
+
+
+def get_channel_views():
+    """Скрапит t.me/s/perfektorganic и возвращает {message_id: views}."""
+    try:
+        r = requests.get("https://t.me/s/perfektorganic", timeout=10,
+                         headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(r.text, "html.parser")
+        result = {}
+        for msg in soup.find_all("div", attrs={"data-post": True}):
+            data_post = msg.get("data-post", "")
+            if "/" in data_post:
+                try:
+                    msg_id = int(data_post.split("/")[-1])
+                    views_el = msg.find("span", class_="tgme_widget_message_views")
+                    if views_el:
+                        result[msg_id] = views_el.text.strip()
+                except (ValueError, AttributeError):
+                    pass
+        return result
+    except Exception:
+        return {}
 
 # Load config keys
 try:
@@ -235,9 +284,14 @@ def api_publish_now():
     text = data.get("text", "").strip()
     photo_b64 = data.get("photo_b64", "")
     photo_url = data.get("photo_url", "").strip()
+    post_type = data.get("post_type", "")
 
     if not text:
         return jsonify({"ok": False, "error": "Нет текста"})
+
+    # Добавляем UTM-метки ко всем ссылкам perfect-org.ru
+    campaign_date = datetime.now().strftime("%Y-%m-%d")
+    text = add_utm(text, campaign_date)
 
     tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -256,6 +310,17 @@ def api_publish_now():
 
     result = r.json()
     if result.get("ok"):
+        msg_id = result.get("result", {}).get("message_id")
+        if msg_id:
+            stats = load_stats()
+            stats.append({
+                "message_id": msg_id,
+                "date": campaign_date,
+                "time": datetime.now().strftime("%H:%M"),
+                "post_type": post_type,
+                "text_preview": text[:120],
+            })
+            save_stats(stats)
         return jsonify({"ok": True, "message": "Опубликовано в канал!"})
     else:
         return jsonify({"ok": False, "error": result.get("description", "Ошибка Telegram")})
@@ -360,6 +425,23 @@ def api_upload_photo():
         return jsonify({"ok": False, "error": "Пустое имя файла"})
     b64 = base64.b64encode(file.read()).decode()
     return jsonify({"ok": True, "photo_b64": b64})
+
+
+# ─── Statistics ──────────────────────────────────────────────────────────────
+
+@app.route("/api/stats")
+@login_required
+def api_stats():
+    stats = load_stats()
+    views_map = get_channel_views()
+    for entry in stats:
+        mid = entry.get("message_id")
+        if mid in views_map:
+            entry["views"] = views_map[mid]
+        elif "views" not in entry:
+            entry["views"] = "—"
+    # Вернуть в обратном порядке (свежие сверху)
+    return jsonify({"stats": list(reversed(stats))})
 
 
 if __name__ == "__main__":
