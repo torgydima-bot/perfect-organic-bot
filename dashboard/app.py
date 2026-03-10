@@ -197,6 +197,7 @@ def api_start():
 def api_update():
     import threading
     output = run_cmd("cd /opt/bot && git pull origin main")
+    run_cmd("cp -r /opt/bot/dashboard/. /opt/dashboard/")
     run_cmd(f"systemctl restart {SERVICE_NAME}")
     threading.Timer(2.0, lambda: run_cmd("systemctl restart perfectorganic-dashboard")).start()
     return jsonify({"ok": True, "message": output.strip().split("\n")[-1]})
