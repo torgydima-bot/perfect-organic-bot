@@ -195,10 +195,19 @@ def api_start():
 @app.route("/api/update", methods=["POST"])
 @login_required
 def api_update():
+    import threading
     output = run_cmd("cd /opt/bot && git pull origin main")
     run_cmd(f"systemctl restart {SERVICE_NAME}")
-    run_cmd("systemctl restart perfectorganic-dashboard")
+    threading.Timer(2.0, lambda: run_cmd("systemctl restart perfectorganic-dashboard")).start()
     return jsonify({"ok": True, "message": output.strip().split("\n")[-1]})
+
+
+@app.route("/api/restart_dashboard", methods=["POST"])
+@login_required
+def api_restart_dashboard():
+    import threading
+    threading.Timer(1.5, lambda: run_cmd("systemctl restart perfectorganic-dashboard")).start()
+    return jsonify({"ok": True, "message": "Дашборд перезапускается..."})
 
 
 # ─── Queue management ───────────────────────────────────────────────────────
