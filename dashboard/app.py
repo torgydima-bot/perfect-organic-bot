@@ -70,11 +70,13 @@ def get_channel_views():
 # Load config keys
 try:
     from config import (BOT_TOKEN, GROQ_API_KEY, OPENAI_API_KEY, TOGETHER_API_KEY,
-                        TARGET_CHANNEL, SHOP_LINK)
+                        TARGET_CHANNEL, SHOP_LINK, METRIKA_TOKEN, METRIKA_COUNTER_ID)
 except Exception:
     BOT_TOKEN = GROQ_API_KEY = OPENAI_API_KEY = TOGETHER_API_KEY = ""
     TARGET_CHANNEL = "@perfektorganic"
     SHOP_LINK = "https://perfect-org.ru/"
+    METRIKA_TOKEN = ""
+    METRIKA_COUNTER_ID = ""
 
 WEEKDAYS = {0: "Понедельник", 1: "Вторник", 2: "Среда",
             3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
@@ -429,17 +431,53 @@ def api_upload_photo():
 
 # ─── Statistics ──────────────────────────────────────────────────────────────
 
+def get_metrika_clicks():
+    """Запрашивает клики по utm_campaign из Яндекс Метрики за последние 90 дней.
+    Возвращает {campaign_date: clicks}."""
+    if not METRIKA_TOKEN or not METRIKA_COUNTER_ID:
+        return {}
+    try:
+        r = requests.get(
+            "https://api-metrika.yandex.net/stat/v1/data",
+            headers={"Authorization": f"OAuth {METRIKA_TOKEN}"},
+            params={
+                "ids": METRIKA_COUNTER_ID,
+                "metrics": "ym:s:visits",
+                "dimensions": "ym:s:UTMCampaign",
+                "date1": "90daysAgo",
+                "date2": "today",
+                "limit": 100,
+                "filters": "ym:s:UTMSource=='telegram'",
+            },
+            timeout=10
+        )
+        data = r.json()
+        result = {}
+        for row in data.get("data", []):
+            campaign = row["dimensions"][0].get("name", "")
+            clicks = int(row["metrics"][0])
+            if campaign:
+                result[campaign] = clicks
+        return result
+    except Exception:
+        return {}
+
+
 @app.route("/api/stats")
 @login_required
 def api_stats():
     stats = load_stats()
     views_map = get_channel_views()
+    clicks_map = get_metrika_clicks()
     for entry in stats:
         mid = entry.get("message_id")
         if mid in views_map:
             entry["views"] = views_map[mid]
         elif "views" not in entry:
             entry["views"] = "—"
+        # Клики из Метрики по дате кампании
+        campaign = entry.get("date", "")
+        entry["clicks"] = clicks_map.get(campaign, 0)
     # Вернуть в обратном порядке (свежие сверху)
     return jsonify({"stats": list(reversed(stats))})
 

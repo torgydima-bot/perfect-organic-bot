@@ -577,17 +577,19 @@ async function loadStats() {
   }
   const rows = stats.map(s => {
     const hasViews = s.views && s.views !== '—';
+    const hasClicks = s.clicks && s.clicks > 0;
     const preview = (s.text_preview || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `<tr>
       <td style="white-space:nowrap;color:#888;">${s.date || ''} ${s.time || ''}</td>
       <td><span class="type-badge">${POST_TYPE_NAMES[s.post_type] || s.post_type || '—'}</span></td>
       <td><span class="views-badge ${hasViews ? 'has' : ''}">👁 ${s.views || '—'}</span></td>
-      <td style="color:#6b7280;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${preview}">${preview}</td>
+      <td><span class="views-badge ${hasClicks ? 'has' : ''}">🔗 ${hasClicks ? s.clicks : '—'}</span></td>
+      <td style="color:#6b7280;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${preview}">${preview}</td>
     </tr>`;
   }).join('');
   document.getElementById('stats-table').innerHTML = `
     <table class="stats-table">
-      <thead><tr><th>Дата</th><th>Тип</th><th>Просмотры</th><th>Текст</th></tr></thead>
+      <thead><tr><th>Дата</th><th>Тип</th><th>Просмотры</th><th>Клики</th><th>Текст</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
