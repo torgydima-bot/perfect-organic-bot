@@ -197,6 +197,7 @@ def api_start():
 def api_update():
     output = run_cmd("cd /opt/bot && git pull origin main")
     run_cmd(f"systemctl restart {SERVICE_NAME}")
+    run_cmd("systemctl restart perfectorganic-dashboard")
     return jsonify({"ok": True, "message": output.strip().split("\n")[-1]})
 
 
