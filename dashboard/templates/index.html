@@ -119,6 +119,17 @@ label:first-child { margin-top: 0; }
 .views-badge.has { background: #14532d; border-color: #166534; color: #86efac; }
 .type-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; background: #1e3a5f; color: #93c5fd; }
 
+/* Post modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: #1a1d2e; border-radius: 16px; padding: 24px; max-width: 560px; width: 95%; max-height: 90vh; overflow-y: auto; border: 1px solid #2d3250; position: relative; }
+.modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; color: #666; font-size: 20px; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: #fff; }
+.modal-photo { width: 100%; border-radius: 10px; margin-bottom: 16px; display: block; max-height: 320px; object-fit: cover; }
+.modal-text { font-size: 13px; line-height: 1.8; color: #ccc; white-space: pre-wrap; word-break: break-word; }
+.modal-meta { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+.stats-table tr { cursor: pointer; }
+
 .char-count { font-size: 11px; color: #555; text-align: right; margin-top: 4px; }
 .char-count.warn { color: #f59e0b; }
 .char-count.over { color: #ef4444; }
@@ -307,6 +318,22 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
         <button class="btn btn-gray btn-sm" onclick="loadLogs()">Обновить</button>
       </div>
       <div class="logs-box" id="logs">Загрузка...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Post viewer modal -->
+<div class="modal-overlay" id="post-modal" onclick="closePostModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePostModal(null, true)">✕</button>
+    <div class="modal-meta">
+      <span class="type-badge" id="modal-type"></span>
+      <span style="color:#555;font-size:12px;" id="modal-date"></span>
+    </div>
+    <img id="modal-photo" class="modal-photo" style="display:none;" src="" alt="фото поста">
+    <div id="modal-text" class="modal-text"></div>
+    <div style="margin-top:16px;">
+      <a id="modal-tg-link" href="#" target="_blank" class="btn btn-blue btn-sm" style="text-decoration:none;">Открыть в Telegram →</a>
     </div>
   </div>
 </div>
@@ -567,24 +594,26 @@ const POST_TYPE_NAMES = {
   sales: 'Продающий', lifestyle: 'О компании', viral: 'Вирусный', faq: 'FAQ'
 };
 
+let statsData = [];
+
 async function loadStats() {
   document.getElementById('stats-table').innerHTML = '<div style="color:#555;padding:20px 0;">Загрузка просмотров...</div>';
   const d = await api('/api/stats');
-  const stats = d.stats || [];
-  if (!stats.length) {
+  statsData = d.stats || [];
+  if (!statsData.length) {
     document.getElementById('stats-table').innerHTML = '<div style="color:#555;padding:20px 0;">Нет опубликованных постов. После публикации через дашборд статистика появится здесь.</div>';
     return;
   }
-  const rows = stats.map(s => {
+  const rows = statsData.map((s, i) => {
     const hasViews = s.views && s.views !== '—';
     const hasClicks = s.clicks && s.clicks > 0;
     const preview = (s.text_preview || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<tr>
+    return `<tr onclick="openPostModal(${i})" title="Нажми чтобы открыть пост">
       <td style="white-space:nowrap;color:#888;">${s.date || ''} ${s.time || ''}</td>
       <td><span class="type-badge">${POST_TYPE_NAMES[s.post_type] || s.post_type || '—'}</span></td>
       <td><span class="views-badge ${hasViews ? 'has' : ''}">👁 ${s.views || '—'}</span></td>
       <td><span class="views-badge ${hasClicks ? 'has' : ''}">🔗 ${hasClicks ? s.clicks : '—'}</span></td>
-      <td style="color:#6b7280;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${preview}">${preview}</td>
+      <td style="color:#6b7280;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${preview}</td>
     </tr>`;
   }).join('');
   document.getElementById('stats-table').innerHTML = `
@@ -592,6 +621,35 @@ async function loadStats() {
       <thead><tr><th>Дата</th><th>Тип</th><th>Просмотры</th><th>Клики</th><th>Текст</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+function openPostModal(i) {
+  const s = statsData[i];
+  if (!s) return;
+  document.getElementById('modal-type').textContent = POST_TYPE_NAMES[s.post_type] || s.post_type || '—';
+  document.getElementById('modal-date').textContent = (s.date || '') + ' ' + (s.time || '');
+  document.getElementById('modal-text').innerHTML = (s.text_full || s.text_preview || '').replace(/\n/g, '<br>');
+  const link = document.getElementById('modal-tg-link');
+  link.href = s.tg_link || '#';
+  link.style.display = s.tg_link ? 'inline-flex' : 'none';
+  const photo = document.getElementById('modal-photo');
+  if (s.photo) {
+    photo.src = 'data:image/jpeg;base64,' + s.photo;
+    photo.style.display = 'block';
+  } else if (s.photo_url) {
+    photo.src = s.photo_url;
+    photo.style.display = 'block';
+  } else {
+    photo.style.display = 'none';
+  }
+  document.getElementById('post-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePostModal(event, force) {
+  if (!force && event && event.target !== document.getElementById('post-modal')) return;
+  document.getElementById('post-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ── System page ─────────────────────────────────────────────────────────────

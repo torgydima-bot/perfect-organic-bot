@@ -315,13 +315,20 @@ def api_publish_now():
         msg_id = result.get("result", {}).get("message_id")
         if msg_id:
             stats = load_stats()
-            stats.append({
+            entry = {
                 "message_id": msg_id,
                 "date": campaign_date,
                 "time": datetime.now().strftime("%H:%M"),
                 "post_type": post_type,
                 "text_preview": text[:120],
-            })
+                "text_full": text,
+                "tg_link": f"https://t.me/perfektorganic/{msg_id}",
+            }
+            if photo_b64:
+                entry["photo"] = photo_b64
+            elif photo_url:
+                entry["photo_url"] = photo_url
+            stats.append(entry)
             save_stats(stats)
         return jsonify({"ok": True, "message": "Опубликовано в канал!"})
     else:
