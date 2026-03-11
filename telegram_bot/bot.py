@@ -1385,16 +1385,6 @@ async def _generate_preview_inner(bot, owner_id, skip_id=None, force_type=None, 
                 except Exception as e:
                     logging.warning(f"OpenAI [{post_type}]: {e}")
 
-        # Для поста "program" — берём og:image с сайта программы
-        if post_type == "program" and not photo_bytes:
-            prog_img_url = getattr(generate_text_post, '_last_product_image_url', None)
-            if prog_img_url:
-                try:
-                    photo_bytes = requests.get(prog_img_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15).content
-                    logging.info("✅ Фото программы: og:image с сайта")
-                except Exception as e:
-                    logging.warning(f"Фото программы не скачалось: {e}")
-
         # Для вирусных постов — генерируем второе фото (счастливый человек + витамины)
         photo2_bytes = None
         if post_type == "viral":
