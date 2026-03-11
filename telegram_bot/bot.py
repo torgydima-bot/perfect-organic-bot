@@ -756,8 +756,12 @@ async def generate_text_post(post_type):
         _post_topic = prog_title
         scraped = scrape_program_page(prog_url)
         prog_text = scraped['description']
-        generate_text_post._last_image_prompt = None
-        generate_text_post._last_product_image_url = scraped['image_url']
+        generate_text_post._last_image_prompt = (
+            f"Warm lifestyle photo related to '{prog_title}' health program. "
+            f"A happy healthy Russian person aged 40-55, in a bright natural setting, "
+            f"smiling confidently, full of energy. Warm golden sunlight, vivid colors. "
+            f"No text, no products, no bottles. Photorealistic, cinematic quality."
+        )
         prompt = (
             f"Напиши пост для Telegram канала Perfect Organic о программе здоровья «{prog_title}».\n\n"
             f"Информация с сайта о программе:\n{prog_text}\n\n"
