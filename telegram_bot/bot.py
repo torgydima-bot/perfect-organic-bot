@@ -31,7 +31,7 @@ from content_plan import (WEEKLY_PLAN, POST_TYPE_LABELS,
                           LIFESTYLE_TOPICS, LIFESTYLE_PHOTO_PROMPT, LIFESTYLE_PHOTO_PROMPTS,
                           _LIFESTYLE_PRODUCTION_TOPICS,
                           PARTNER_TOPICS, PARTNER_PHOTO_PROMPT, PARTNER_PHOTO_PROMPTS,
-                          HEALTH_PROGRAMS)
+                          HEALTH_PROGRAMS, HEALTH_PROGRAM_URLS)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -310,6 +310,39 @@ def scrape_product_page(url):
     except Exception as e:
         logging.warning(f"Не удалось скрапить {url}: {e}")
         return {'description': '', 'composition': '', 'image_url': None}
+
+
+def scrape_program_page(url):
+    """Скрапит страницу программы здоровья: текст, продукты, og:image."""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        resp = requests.get(url, headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        # og:image
+        image_url = None
+        og = soup.find('meta', property='og:image')
+        if og:
+            image_url = og.get('content') or None
+
+        # Убираем nav/header/footer/script/style
+        for tag in soup(['nav', 'header', 'footer', 'script', 'style']):
+            tag.decompose()
+
+        # Собираем весь текст, фильтруем короткие строки
+        lines = [l.strip() for l in soup.get_text(separator='\n', strip=True).splitlines()]
+        # Отбираем содержательные строки (не кнопки, не меню)
+        content_lines = [l for l in lines if len(l) > 30 and not any(
+            kw in l.lower() for kw in ['задать вопрос', 'стать партнером', 'получить', 'показать', 'скрыть',
+                                        'каталог', 'доставка', 'контакты', 'отзывы', 'телефон:', 'www.',
+                                        'javascript', 'function(', 'var ', 'css']
+        )]
+        description = '\n\n'.join(content_lines[:12])[:2000]
+
+        return {'description': description, 'image_url': image_url}
+    except Exception as e:
+        logging.warning(f"Не удалось скрапить программу {url}: {e}")
+        return {'description': '', 'image_url': None}
 
 
 _PRODUCT_IMAGES_DIR = os.path.join(os.path.dirname(__file__), 'telegram_botproduct_images')
@@ -714,6 +747,27 @@ async def generate_text_post(post_type):
             f"Первая строка — придуманный тобой вдохновляющий заголовок по теме в тегах <b>...</b>. Выдели жирным ключевые выгоды.\n"
             f"ВАЖНО: пиши ТОЛЬКО на русском языке — никаких английских слов в тексте!\n"
             f"200-250 слов. {CTA_NOTE}"
+        )
+    elif post_type == "program":
+        prog = get_fresh_topic("health_program_url", HEALTH_PROGRAM_URLS)
+        prog_title = prog["title"]
+        prog_url = prog["url"]
+        _post_topic = prog_title
+        scraped = scrape_program_page(prog_url)
+        prog_text = scraped['description']
+        generate_text_post._last_image_prompt = None
+        generate_text_post._last_product_image_url = scraped['image_url']
+        prompt = (
+            f"Напиши пост для Telegram канала Perfect Organic о программе здоровья «{prog_title}».\n\n"
+            f"Информация с сайта о программе:\n{prog_text}\n\n"
+            f"Структура поста:\n"
+            f"1. Заголовок с эмодзи, название программы, обёрнутый в <b>...</b>\n"
+            f"2. Описание проблемы — почему она возникает, кому актуальна (2-3 предложения)\n"
+            f"3. Что включает программа — кратко перечисли ключевые компоненты/продукты из текста выше в виде списка:\n"
+            f"✅ <b>Название</b> — одно предложение о пользе.\n"
+            f"4. Призыв: узнать подробнее на сайте perfect-org.ru\n\n"
+            f"Стиль: экспертный, заботливый, с эмодзи. Выдели жирным заголовок и названия продуктов.\n"
+            f"200-240 слов. {CTA_NOTE}"
         )
     elif post_type == "faq":
         program = get_fresh_topic("health_program", HEALTH_PROGRAMS)

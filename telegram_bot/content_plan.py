@@ -9,7 +9,7 @@ WEEKLY_PLAN = {
     3: "sales",     # Четверг      — продающий (один продукт + польза + ссылка)
     4: "lifestyle", # Пятница      — о компании и здоровом образе жизни
     5: "viral",     # Суббота      — вирусный (факты, мифы — на выходных хорошо разлетается)
-    6: "faq",       # Воскресенье  — рекомендации при болезнях
+    6: "program",   # Воскресенье  — программа здоровья с сайта
 }
 
 POST_TYPE_LABELS = {
@@ -20,7 +20,32 @@ POST_TYPE_LABELS = {
     "lifestyle": "💚 О здоровой жизни",
     "partner":   "🤝 Партнёрский",
     "faq":       "💊 Рекомендации при болезнях",
+    "program":   "🌿 Программа здоровья",
 }
+
+# ─── ПРОГРАММЫ ЗДОРОВЬЯ (с сайта perfect-org.ru/programi) ────────────────────
+# Воскресенье — пост по конкретной программе, чередуем по кругу
+
+HEALTH_PROGRAM_URLS = [
+    {"url": "https://perfect-org.ru/pohudenie",        "title": "Снижение веса"},
+    {"url": "https://perfect-org.ru/detox",            "title": "Детокс-очищение"},
+    {"url": "https://perfect-org.ru/antistress",       "title": "Антистресс"},
+    {"url": "https://perfect-org.ru/imunitet",         "title": "Укрепление иммунитета"},
+    {"url": "https://perfect-org.ru/sustavy",          "title": "Здоровье суставов"},
+    {"url": "https://perfect-org.ru/serdce",           "title": "Здоровье сердца"},
+    {"url": "https://perfect-org.ru/zhenskoezdorove",  "title": "Женское здоровье"},
+    {"url": "https://perfect-org.ru/muzhskoezdorovye", "title": "Мужское здоровье"},
+    {"url": "https://perfect-org.ru/antivozrast",      "title": "Антивозраст"},
+    {"url": "https://perfect-org.ru/apatiydepressiy",  "title": "Апатия и депрессия"},
+    {"url": "https://perfect-org.ru/alergiy",          "title": "Аллергия"},
+    {"url": "https://perfect-org.ru/autoimmunnie",     "title": "Аутоиммунные заболевания"},
+    {"url": "https://perfect-org.ru/diabed",           "title": "Диабет"},
+    {"url": "https://perfect-org.ru/pochki",           "title": "Здоровье почек"},
+    {"url": "https://perfect-org.ru/zhashitapecheni",  "title": "Защита печени"},
+    {"url": "https://perfect-org.ru/sport",            "title": "Спорт и активность"},
+    {"url": "https://perfect-org.ru/naborvesa",        "title": "Набор веса"},
+    {"url": "https://perfect-org.ru/onko",             "title": "Онкопротекция"},
+]
 
 # ─── ЭКСПЕРТНЫЕ посты ────────────────────────────────────────────────────────
 # Пишем от лица врача-нутрициолога, генерируем фото доктора через gpt-image-1
