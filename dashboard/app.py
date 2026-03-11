@@ -382,8 +382,9 @@ def api_generate_text():
             timeout=30
         )
         result = r.json()
+        if "choices" not in result:
+            return jsonify({"ok": False, "error": result.get("error", {}).get("message", str(result))})
         text = result["choices"][0]["message"]["content"]
-        # Trim to 1000 chars
         if len(text) > 1000:
             text = text[:980] + "..."
         return jsonify({"ok": True, "text": text})
