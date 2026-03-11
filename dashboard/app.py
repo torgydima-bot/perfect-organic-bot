@@ -87,10 +87,11 @@ POST_TYPES = {
     "sales": "Продающий",
     "lifestyle": "О компании",
     "viral": "Вирусный",
-    "faq": "Вопрос-ответ"
+    "faq": "Вопрос-ответ",
+    "program": "🌿 Программа здоровья"
 }
 WEEKLY_SCHEDULE = {0: "expert", 1: "review", 2: "partner",
-                   3: "sales", 4: "lifestyle", 5: "viral", 6: "faq"}
+                   3: "sales", 4: "lifestyle", 5: "viral", 6: "program"}
 
 
 def login_required(f):
@@ -363,6 +364,7 @@ def api_generate_text():
         "lifestyle": f"Напиши пост о здоровом образе жизни для Telegram. Тема: {topic or 'утренние ритуалы'}. Вдохновляющий тон. Используй <b>жирный</b>.",
         "partner": f"Напиши пост о партнёрской программе Perfect Organic. Преимущества: пассивный доход, натуральные продукты, поддержка. Ссылка: {SHOP_LINK}. Используй <b>жирный</b>.",
         "review": f"Напиши реалистичный отзыв покупателя натуральных добавок. Тема: {topic or 'витамины'}. От лица покупателя. 2-3 предложения.",
+        "program": f"Напиши пост для Telegram о программе здоровья Perfect Organic. Тема программы: {topic or 'Снижение веса'}. Опиши: проблему, что включает программа, ключевые продукты, призыв перейти на {SHOP_LINK}. Используй <b>жирный</b>. 200-240 слов.",
     }
 
     prompt = prompts.get(post_type, prompts["expert"])
@@ -405,6 +407,7 @@ def api_generate_photo():
             "sales": "Natural health supplements on wooden table with herbs, professional product photo",
             "lifestyle": "Happy healthy family outdoors in nature, sunny day, warm tones",
             "faq": "Close-up hands holding natural capsules with herbs background",
+            "program": "Happy healthy Russian person outdoors in nature, warm sunlight, full of energy, photorealistic",
             "partner": "Successful woman working from laptop at home, natural light, modern interior",
             "review": "Smiling satisfied customer, natural background, candid photo",
         }
