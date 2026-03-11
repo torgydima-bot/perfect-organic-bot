@@ -574,6 +574,7 @@ def get_cta_block(post_type, product_url=None):
         "lifestyle": f"\n\n🤝 <a href='{PARTNER_LINK}'>Стать партнёром</a> — зарегистрируйся в <a href='{PARTNER_LINK}'>Perfect Organic</a>",
         "partner":   f"\n\n🤝 <a href='{PARTNER_LINK}'>Стать партнёром</a> — присоединяйся к команде <a href='{PARTNER_LINK}'>Perfect Organic</a>",
         "faq":       f"\n\n📋 <a href='{TEST_LINK}'>Моё здоровье</a> — пройди тест и узнай свой результат",
+        "program":   f"\n\n🌿 <a href='{SHOP_LINK}'>Подробнее о программе</a> на сайте perfect-org.ru",
     }
     return blocks.get(post_type, f"\n\n🌐 <a href='{SHOP_LINK}'>Сайт компании</a>")
 
@@ -1274,7 +1275,7 @@ async def _generate_preview_inner(bot, owner_id, skip_id=None, force_type=None, 
         ai_img_prompt = None
         if post_type == "expert":
             ai_img_prompt = random.choice(DOCTOR_PHOTO_PROMPTS)
-        elif post_type in ("faq", "sales", "viral", "lifestyle", "partner"):
+        elif post_type in ("faq", "program", "sales", "viral", "lifestyle", "partner"):
             ai_img_prompt = getattr(generate_text_post, '_last_image_prompt', None)
             if not ai_img_prompt:
                 product_name = getattr(generate_text_post, '_last_product_name', 'supplement')
@@ -1383,6 +1384,16 @@ async def _generate_preview_inner(bot, owner_id, skip_id=None, force_type=None, 
                     logging.info(f"✅ Фото: OpenAI")
                 except Exception as e:
                     logging.warning(f"OpenAI [{post_type}]: {e}")
+
+        # Для поста "program" — берём og:image с сайта программы
+        if post_type == "program" and not photo_bytes:
+            prog_img_url = getattr(generate_text_post, '_last_product_image_url', None)
+            if prog_img_url:
+                try:
+                    photo_bytes = requests.get(prog_img_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15).content
+                    logging.info("✅ Фото программы: og:image с сайта")
+                except Exception as e:
+                    logging.warning(f"Фото программы не скачалось: {e}")
 
         # Для вирусных постов — генерируем второе фото (счастливый человек + витамины)
         photo2_bytes = None
