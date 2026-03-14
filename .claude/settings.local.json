@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c \"from PIL import Image; print\\(''Pillow OK''\\)\")",
-      "Bash(python -c \"from content_plan import build_viral_image_prompt, _VIRAL_PERSON_VARIANTS, VIRAL_PHOTO_PROMPTS; print\\(''OK''\\); print\\(build_viral_image_prompt\\(''Железный факт: 60% женщин живут с анемией'', ''woman''\\)[:200]\\)\")"
+      "Bash(python -c \"from content_plan import build_viral_image_prompt, _VIRAL_PERSON_VARIANTS, VIRAL_PHOTO_PROMPTS; print\\(''OK''\\); print\\(build_viral_image_prompt\\(''Железный факт: 60% женщин живут с анемией'', ''woman''\\)[:200]\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''app.py'', doraise=True\\)\")"
     ]
   },
   "hooks": {

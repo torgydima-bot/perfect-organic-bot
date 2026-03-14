@@ -370,6 +370,9 @@ def api_generate_text():
 
     prompt = prompts.get(post_type, prompts["expert"])
 
+    if not GROQ_API_KEY:
+        return jsonify({"ok": False, "error": "GROQ_API_KEY не настроен"})
+
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -382,6 +385,7 @@ def api_generate_text():
             },
             timeout=30
         )
+        print(f"[Groq] status={r.status_code} body={r.text[:300]}")
         result = r.json()
         if "choices" not in result:
             err_msg = "Неизвестная ошибка Groq"
@@ -396,7 +400,10 @@ def api_generate_text():
         if len(text) > 1000:
             text = text[:980] + "..."
         return jsonify({"ok": True, "text": text})
+    except requests.exceptions.Timeout:
+        return jsonify({"ok": False, "error": "Groq не ответил за 30 секунд, попробуйте ещё раз"})
     except Exception as e:
+        print(f"[Groq] exception: {e}")
         return jsonify({"ok": False, "error": str(e)})
 
 
@@ -429,7 +436,7 @@ def api_generate_photo():
             json={
                 "model": "black-forest-labs/FLUX.1-schnell-Free",
                 "prompt": prompt + ". High quality, photorealistic, no text, no watermarks",
-                "width": 1024, "height": 1024, "steps": 4, "n": 1
+                "width": 1024, "height": 768, "steps": 4, "n": 1
             },
             timeout=60
         )

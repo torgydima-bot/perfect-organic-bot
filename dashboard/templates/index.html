@@ -369,11 +369,16 @@ function toast(msg, type='') {
 
 // ── API helper ─────────────────────────────────────────────────────────────
 async function api(url, opts={}) {
-  const r = await fetch(url, {
-    headers: {'Content-Type': 'application/json'},
-    ...opts
-  });
-  return r.json();
+  try {
+    const r = await fetch(url, {
+      headers: {'Content-Type': 'application/json'},
+      ...opts
+    });
+    const data = await r.json();
+    return data;
+  } catch(e) {
+    return {ok: false, error: 'Сетевая ошибка: ' + e.message};
+  }
 }
 
 // ── Queue page ─────────────────────────────────────────────────────────────
