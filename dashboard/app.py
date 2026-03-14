@@ -383,7 +383,14 @@ def api_generate_text():
         )
         result = r.json()
         if "choices" not in result:
-            return jsonify({"ok": False, "error": result.get("error", {}).get("message", str(result))})
+            err_msg = "Неизвестная ошибка Groq"
+            if isinstance(result.get("error"), dict):
+                err_msg = result["error"].get("message", str(result))
+            elif isinstance(result.get("error"), str):
+                err_msg = result["error"]
+            else:
+                err_msg = str(result)[:300]
+            return jsonify({"ok": False, "error": f"Groq: {err_msg}"})
         text = result["choices"][0]["message"]["content"]
         if len(text) > 1000:
             text = text[:980] + "..."
