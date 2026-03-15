@@ -569,6 +569,11 @@ async function saveToQueue() {
   const text = document.getElementById('create-text').value.trim();
   if (!text) { toast('Введи текст поста', 'err'); return; }
 
+  const btn = document.querySelector('button[onclick="saveToQueue()"]');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Сохраняю...';
+  btn.disabled = true;
+
   const d = await api('/api/queue/save', {
     method: 'POST',
     body: JSON.stringify({
@@ -579,6 +584,10 @@ async function saveToQueue() {
       photo_url: document.getElementById('photo-url').value.trim()
     })
   });
+
+  btn.innerHTML = d.ok ? '✅ Сохранено!' : orig;
+  btn.disabled = false;
+  setTimeout(() => { btn.innerHTML = orig; }, 3000);
   toast(d.message || d.error, d.ok ? 'ok' : 'err');
 }
 

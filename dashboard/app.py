@@ -422,6 +422,7 @@ def api_publish_now():
 @app.route("/api/send_preview", methods=["POST"])
 @login_required
 def api_send_preview():
+    import threading, json as _json
     data = request.get_json()
     text = data.get("text", "").strip()
     photo_b64 = data.get("photo_b64", "")
@@ -432,51 +433,50 @@ def api_send_preview():
 
     tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     chat_id = str(OWNER_CHAT_ID)
-
-    import json as _json
     rm = _json.dumps(ASK_BUTTON)
 
-    if photo_b64:
-        photo_bytes = base64.b64decode(photo_b64)
-        if len(text) <= 1024:
-            r = requests.post(f"{tg_url}/sendPhoto",
-                              data={"chat_id": chat_id, "caption": text,
-                                    "parse_mode": "HTML", "reply_markup": rm},
-                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
-        else:
-            r = requests.post(f"{tg_url}/sendPhoto",
-                              data={"chat_id": chat_id},
-                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
-            if r.json().get("ok"):
-                r = requests.post(f"{tg_url}/sendMessage",
-                                  json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
-                                        "disable_web_page_preview": True,
+    def _send():
+        try:
+            if photo_b64:
+                photo_bytes = base64.b64decode(photo_b64)
+                if len(text) <= 1024:
+                    requests.post(f"{tg_url}/sendPhoto",
+                                  data={"chat_id": chat_id, "caption": text,
+                                        "parse_mode": "HTML", "reply_markup": rm},
+                                  files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=60)
+                else:
+                    r2 = requests.post(f"{tg_url}/sendPhoto",
+                                       data={"chat_id": chat_id},
+                                       files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=60)
+                    if r2.json().get("ok"):
+                        requests.post(f"{tg_url}/sendMessage",
+                                      json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                            "disable_web_page_preview": True,
+                                            "reply_markup": ASK_BUTTON}, timeout=15)
+            elif photo_url:
+                if len(text) <= 1024:
+                    requests.post(f"{tg_url}/sendPhoto",
+                                  json={"chat_id": chat_id, "photo": photo_url,
+                                        "caption": text, "parse_mode": "HTML",
                                         "reply_markup": ASK_BUTTON}, timeout=15)
-    elif photo_url:
-        if len(text) <= 1024:
-            r = requests.post(f"{tg_url}/sendPhoto",
-                              json={"chat_id": chat_id, "photo": photo_url,
-                                    "caption": text, "parse_mode": "HTML",
-                                    "reply_markup": ASK_BUTTON}, timeout=15)
-        else:
-            r = requests.post(f"{tg_url}/sendPhoto",
-                              json={"chat_id": chat_id, "photo": photo_url}, timeout=15)
-            if r.json().get("ok"):
-                r = requests.post(f"{tg_url}/sendMessage",
-                                  json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
-                                        "disable_web_page_preview": True,
-                                        "reply_markup": ASK_BUTTON}, timeout=15)
-    else:
-        r = requests.post(f"{tg_url}/sendMessage",
-                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
-                                "disable_web_page_preview": True, "reply_markup": ASK_BUTTON},
-                          timeout=15)
+                else:
+                    r2 = requests.post(f"{tg_url}/sendPhoto",
+                                       json={"chat_id": chat_id, "photo": photo_url}, timeout=15)
+                    if r2.json().get("ok"):
+                        requests.post(f"{tg_url}/sendMessage",
+                                      json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                            "disable_web_page_preview": True,
+                                            "reply_markup": ASK_BUTTON}, timeout=15)
+            else:
+                requests.post(f"{tg_url}/sendMessage",
+                              json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                    "disable_web_page_preview": True, "reply_markup": ASK_BUTTON},
+                              timeout=15)
+        except Exception as e:
+            print(f"[send_preview] error: {e}")
 
-    result = r.json()
-    if result.get("ok"):
-        return jsonify({"ok": True, "message": "Пост отправлен вам в Telegram!"})
-    else:
-        return jsonify({"ok": False, "error": result.get("description", "Ошибка Telegram")})
+    threading.Thread(target=_send, daemon=True).start()
+    return jsonify({"ok": True, "message": "Отправляю в Telegram... придёт через несколько секунд"})
 
 
 # ─── AI Text generation ─────────────────────────────────────────────────────
