@@ -78,6 +78,44 @@ except Exception:
     METRIKA_TOKEN = ""
     METRIKA_COUNTER_ID = ""
 
+try:
+    from content_plan import HEALTH_PROGRAM_URLS
+except Exception:
+    HEALTH_PROGRAM_URLS = [
+        {"url": "https://perfect-org.ru/pohudenie",       "title": "Снижение веса"},
+        {"url": "https://perfect-org.ru/detox",           "title": "Детокс-очищение"},
+        {"url": "https://perfect-org.ru/antistress",      "title": "Антистресс"},
+        {"url": "https://perfect-org.ru/imunitet",        "title": "Укрепление иммунитета"},
+        {"url": "https://perfect-org.ru/sustavy",         "title": "Здоровье суставов"},
+        {"url": "https://perfect-org.ru/serdce",          "title": "Здоровье сердца"},
+        {"url": "https://perfect-org.ru/zhenskoezdorove", "title": "Женское здоровье"},
+        {"url": "https://perfect-org.ru/muzhskoezdorovye","title": "Мужское здоровье"},
+    ]
+
+
+def scrape_program_page(url):
+    """Скрапит страницу программы здоровья: текст и og:image."""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        resp = requests.get(url, headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        image_url = None
+        og = soup.find('meta', property='og:image')
+        if og:
+            image_url = og.get('content') or None
+        for tag in soup(['nav', 'header', 'footer', 'script', 'style']):
+            tag.decompose()
+        lines = [l.strip() for l in soup.get_text(separator='\n', strip=True).splitlines()]
+        content_lines = [l for l in lines if len(l) > 30 and not any(
+            kw in l.lower() for kw in ['задать вопрос', 'стать партнером', 'получить', 'показать',
+                                        'каталог', 'доставка', 'контакты', 'телефон:', 'www.',
+                                        'javascript', 'function(', 'var ', 'css']
+        )]
+        description = '\n\n'.join(content_lines[:12])[:2000]
+        return {'description': description, 'image_url': image_url}
+    except Exception:
+        return {'description': '', 'image_url': None}
+
 WEEKDAYS = {0: "Понедельник", 1: "Вторник", 2: "Среда",
             3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
 POST_TYPES = {
@@ -365,10 +403,34 @@ def api_generate_text():
         "lifestyle": f"Напиши пост о здоровом образе жизни для Telegram. Тема: {topic or 'утренние ритуалы'}. Вдохновляющий тон. Используй <b>жирный</b>.",
         "partner": f"Напиши пост о партнёрской программе Perfect Organic. Преимущества: пассивный доход, натуральные продукты, поддержка. Ссылка: {SHOP_LINK}. Используй <b>жирный</b>.",
         "review": f"Напиши реалистичный отзыв покупателя натуральных добавок. Тема: {topic or 'витамины'}. От лица покупателя. 2-3 предложения.",
-        "program": f"Напиши пост для Telegram о программе здоровья Perfect Organic. Тема программы: {topic or 'Снижение веса'}. Опиши: проблему, что включает программа, ключевые продукты, призыв перейти на {SHOP_LINK}. Используй <b>жирный</b>. 200-240 слов.",
     }
 
-    prompt = prompts.get(post_type, prompts["expert"])
+    # Для program — скрапим сайт и строим промпт из реального текста
+    if post_type == "program":
+        prog_title = topic or "Снижение веса"
+        prog_url = next(
+            (p["url"] for p in HEALTH_PROGRAM_URLS if p["title"].lower() == prog_title.lower()),
+            HEALTH_PROGRAM_URLS[0]["url"]
+        )
+        scraped = scrape_program_page(prog_url)
+        prog_text = scraped['description']
+        if prog_text:
+            prompt = (
+                f"Напиши пост для Telegram канала Perfect Organic о программе здоровья «{prog_title}».\n\n"
+                f"Информация с сайта о программе:\n{prog_text}\n\n"
+                f"Структура поста:\n"
+                f"1. Заголовок с эмодзи, название программы, обёрнутый в <b>...</b>\n"
+                f"2. Описание проблемы — почему она возникает, кому актуальна (2-3 предложения)\n"
+                f"3. Что включает программа — кратко перечисли ключевые компоненты/продукты из текста выше в виде списка:\n"
+                f"✅ <b>Название</b> — одно предложение о пользе.\n"
+                f"4. Призыв: узнать подробнее на сайте {SHOP_LINK}\n\n"
+                f"Стиль: экспертный, заботливый, с эмодзи. Выдели жирным заголовок и названия продуктов.\n"
+                f"200-240 слов."
+            )
+        else:
+            prompt = f"Напиши пост для Telegram о программе здоровья «{prog_title}» от Perfect Organic. Опиши: проблему, ключевые продукты, призыв перейти на {SHOP_LINK}. Используй <b>жирный</b>. 200-240 слов."
+    else:
+        prompt = prompts.get(post_type, prompts["expert"])
 
     if not GROQ_API_KEY:
         return jsonify({"ok": False, "error": "GROQ_API_KEY не настроен"})
@@ -380,7 +442,7 @@ def api_generate_text():
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 600,
+                "max_tokens": 900,
                 "temperature": 0.8
             },
             timeout=30
