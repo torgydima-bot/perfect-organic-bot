@@ -350,13 +350,29 @@ def api_publish_now():
 
     if photo_b64:
         photo_bytes = base64.b64decode(photo_b64)
-        r = requests.post(f"{tg_url}/sendPhoto",
-                          data={"chat_id": TARGET_CHANNEL, "caption": text, "parse_mode": "HTML"},
-                          files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
+        if len(text) > 1024:
+            # Фото без подписи, потом текст отдельным сообщением
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              data={"chat_id": TARGET_CHANNEL},
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
+            if r.json().get("ok"):
+                r = requests.post(f"{tg_url}/sendMessage",
+                                  json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
+        else:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              data={"chat_id": TARGET_CHANNEL, "caption": text, "parse_mode": "HTML"},
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
     elif photo_url:
-        r = requests.post(f"{tg_url}/sendPhoto",
-                          json={"chat_id": TARGET_CHANNEL, "photo": photo_url,
-                                "caption": text, "parse_mode": "HTML"})
+        if len(text) > 1024:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              json={"chat_id": TARGET_CHANNEL, "photo": photo_url})
+            if r.json().get("ok"):
+                r = requests.post(f"{tg_url}/sendMessage",
+                                  json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
+        else:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              json={"chat_id": TARGET_CHANNEL, "photo": photo_url,
+                                    "caption": text, "parse_mode": "HTML"})
     else:
         r = requests.post(f"{tg_url}/sendMessage",
                           json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
@@ -463,8 +479,8 @@ def api_generate_text():
                 err_msg = str(result)[:300]
             return jsonify({"ok": False, "error": f"Groq: {err_msg}"})
         text = result["choices"][0]["message"]["content"]
-        if len(text) > 1000:
-            text = text[:980] + "..."
+        if len(text) > 1280:
+            text = text[:1260] + "..."
         return jsonify({"ok": True, "text": text})
     except requests.exceptions.Timeout:
         return jsonify({"ok": False, "error": "Groq не ответил за 30 секунд, попробуйте ещё раз"})
