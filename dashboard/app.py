@@ -80,6 +80,9 @@ except Exception:
     METRIKA_COUNTER_ID = ""
     OWNER_CHAT_ID = 326905536
 
+OWNER_TG_LINK = "https://t.me/DmitriyPO"
+ASK_BUTTON = {"inline_keyboard": [[{"text": "💬 Задать вопрос", "url": OWNER_TG_LINK}]]}
+
 try:
     from content_plan import HEALTH_PROGRAM_URLS
 except Exception:
@@ -350,34 +353,44 @@ def api_publish_now():
 
     tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
+    import json as _json
+    rm = _json.dumps(ASK_BUTTON)
+
     if photo_b64:
         photo_bytes = base64.b64decode(photo_b64)
         if len(text) > 1024:
-            # Фото без подписи, потом текст отдельным сообщением
             r = requests.post(f"{tg_url}/sendPhoto",
                               data={"chat_id": TARGET_CHANNEL},
-                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
             if r.json().get("ok"):
                 r = requests.post(f"{tg_url}/sendMessage",
-                                  json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
+                                  json={"chat_id": TARGET_CHANNEL, "text": text,
+                                        "parse_mode": "HTML", "disable_web_page_preview": True,
+                                        "reply_markup": ASK_BUTTON}, timeout=15)
         else:
             r = requests.post(f"{tg_url}/sendPhoto",
-                              data={"chat_id": TARGET_CHANNEL, "caption": text, "parse_mode": "HTML"},
-                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
+                              data={"chat_id": TARGET_CHANNEL, "caption": text,
+                                    "parse_mode": "HTML", "reply_markup": rm},
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
     elif photo_url:
         if len(text) > 1024:
             r = requests.post(f"{tg_url}/sendPhoto",
-                              json={"chat_id": TARGET_CHANNEL, "photo": photo_url})
+                              json={"chat_id": TARGET_CHANNEL, "photo": photo_url}, timeout=15)
             if r.json().get("ok"):
                 r = requests.post(f"{tg_url}/sendMessage",
-                                  json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
+                                  json={"chat_id": TARGET_CHANNEL, "text": text,
+                                        "parse_mode": "HTML", "disable_web_page_preview": True,
+                                        "reply_markup": ASK_BUTTON}, timeout=15)
         else:
             r = requests.post(f"{tg_url}/sendPhoto",
                               json={"chat_id": TARGET_CHANNEL, "photo": photo_url,
-                                    "caption": text, "parse_mode": "HTML"})
+                                    "caption": text, "parse_mode": "HTML",
+                                    "reply_markup": ASK_BUTTON}, timeout=15)
     else:
         r = requests.post(f"{tg_url}/sendMessage",
-                          json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML"})
+                          json={"chat_id": TARGET_CHANNEL, "text": text, "parse_mode": "HTML",
+                                "disable_web_page_preview": True, "reply_markup": ASK_BUTTON},
+                          timeout=15)
 
     result = r.json()
     if result.get("ok"):
@@ -420,23 +433,44 @@ def api_send_preview():
     tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     chat_id = str(OWNER_CHAT_ID)
 
+    import json as _json
+    rm = _json.dumps(ASK_BUTTON)
+
     if photo_b64:
         photo_bytes = base64.b64decode(photo_b64)
-        caption = text if len(text) <= 1024 else text[:1020] + "..."
-        r = requests.post(f"{tg_url}/sendPhoto",
-                          data={"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"},
-                          files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
-        if len(text) > 1024:
-            requests.post(f"{tg_url}/sendMessage",
-                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+        if len(text) <= 1024:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              data={"chat_id": chat_id, "caption": text,
+                                    "parse_mode": "HTML", "reply_markup": rm},
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
+        else:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              data={"chat_id": chat_id},
+                              files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=30)
+            if r.json().get("ok"):
+                r = requests.post(f"{tg_url}/sendMessage",
+                                  json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                        "disable_web_page_preview": True,
+                                        "reply_markup": ASK_BUTTON}, timeout=15)
     elif photo_url:
-        caption = text if len(text) <= 1024 else text[:1020] + "..."
-        r = requests.post(f"{tg_url}/sendPhoto",
-                          json={"chat_id": chat_id, "photo": photo_url,
-                                "caption": caption, "parse_mode": "HTML"})
+        if len(text) <= 1024:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              json={"chat_id": chat_id, "photo": photo_url,
+                                    "caption": text, "parse_mode": "HTML",
+                                    "reply_markup": ASK_BUTTON}, timeout=15)
+        else:
+            r = requests.post(f"{tg_url}/sendPhoto",
+                              json={"chat_id": chat_id, "photo": photo_url}, timeout=15)
+            if r.json().get("ok"):
+                r = requests.post(f"{tg_url}/sendMessage",
+                                  json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                        "disable_web_page_preview": True,
+                                        "reply_markup": ASK_BUTTON}, timeout=15)
     else:
         r = requests.post(f"{tg_url}/sendMessage",
-                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                "disable_web_page_preview": True, "reply_markup": ASK_BUTTON},
+                          timeout=15)
 
     result = r.json()
     if result.get("ok"):
@@ -454,14 +488,15 @@ def api_generate_text():
     post_type = data.get("post_type", "expert")
     topic = data.get("topic", "")
 
+    greeting = "Дорогие подписчики,"
     prompts = {
-        "expert": f"Ты врач-нутрициолог. Напиши экспертный пост для Telegram канала о здоровье и натуральных добавках. Тема: {topic or 'польза витаминов'}. Используй <b>жирный текст</b> для акцентов. 3-4 абзаца. В конце призыв перейти на {SHOP_LINK}",
-        "viral": f"Напиши вирусный пост для Telegram о здоровье. Начни с шокирующего факта. Тема: {topic or 'здоровое питание'}. Используй <b>жирный</b>. Призыв к действию в конце.",
-        "sales": f"Напиши продающий пост для Telegram о натуральном продукте. Продукт/тема: {topic or 'витамины'}. Преимущества, отзывы, призыв купить на {SHOP_LINK}. Используй <b>жирный</b>.",
-        "faq": f"Напиши пост в формате вопрос-ответ для Telegram канала о здоровье. Тема: {topic or 'витамин D'}. Начни с вопроса, дай развёрнутый ответ. Используй <b>жирный</b>.",
-        "lifestyle": f"Напиши пост о здоровом образе жизни для Telegram. Тема: {topic or 'утренние ритуалы'}. Вдохновляющий тон. Используй <b>жирный</b>.",
-        "partner": f"Напиши пост о партнёрской программе Perfect Organic. Преимущества: пассивный доход, натуральные продукты, поддержка. Ссылка: {SHOP_LINK}. Используй <b>жирный</b>.",
-        "review": f"Напиши реалистичный отзыв покупателя натуральных добавок. Тема: {topic or 'витамины'}. От лица покупателя. 2-3 предложения.",
+        "expert": f"Ты врач-нутрициолог. Напиши экспертный пост для Telegram канала о здоровье. Начни пост со слов «{greeting}». Тема: {topic or 'польза витаминов'}. Используй <b>жирный текст</b> для акцентов. 3-4 абзаца. Живой диалог с читателем. В конце призыв перейти на {SHOP_LINK}",
+        "viral": f"Напиши вирусный пост для Telegram о здоровье. Начни пост со слов «{greeting}». Начни с шокирующего факта. Тема: {topic or 'здоровое питание'}. Используй <b>жирный</b>. Живой диалог с читателем. Призыв к действию в конце.",
+        "sales": f"Напиши продающий пост для Telegram. Начни пост со слов «{greeting}». Продукт/тема: {topic or 'витамины'}. Преимущества, призыв купить на {SHOP_LINK}. Используй <b>жирный</b>. Живой тон.",
+        "faq": f"Напиши пост в формате вопрос-ответ для Telegram о здоровье. Начни пост со слов «{greeting}». Тема: {topic or 'витамин D'}. Живой диалог. Используй <b>жирный</b>.",
+        "lifestyle": f"Напиши пост о здоровом образе жизни для Telegram. Начни пост со слов «{greeting}». Тема: {topic or 'утренние ритуалы'}. Вдохновляющий живой тон. Используй <b>жирный</b>.",
+        "partner": f"Напиши пост о партнёрской программе Perfect Organic. Начни пост со слов «{greeting}». Преимущества: пассивный доход, натуральные продукты. Ссылка: {SHOP_LINK}. Используй <b>жирный</b>.",
+        "review": f"Напиши реалистичный отзыв покупателя натуральных добавок. Тема: {topic or 'витамины'}. От лица покупателя. 2-3 предложения. Живой тон.",
     }
 
     # Для program — скрапим сайт и строим промпт из реального текста
