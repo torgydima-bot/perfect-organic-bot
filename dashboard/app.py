@@ -540,7 +540,21 @@ def api_generate_text():
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json={
                 "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Ты копирайтер Telegram-канала Perfect Organic. "
+                            "СТРОГО пиши ТОЛЬКО на русском языке — никаких английских слов в тексте. "
+                            "Используй ТОЛЬКО кириллицу. "
+                            "Никаких markdown символов * или **. Для выделения используй ТОЛЬКО HTML тег <b>текст</b>. "
+                            "Добавляй эмодзи для живости текста. "
+                            "Между абзацами оставляй пустую строку. "
+                            "Отвечай готовым текстом без вводных фраз."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
                 "max_tokens": 900 if post_type == "program" else 600,
                 "temperature": 0.8
             },
