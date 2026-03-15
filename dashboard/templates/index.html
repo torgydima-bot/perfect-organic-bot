@@ -247,13 +247,16 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
         <input type="url" id="photo-url" placeholder="https://..." oninput="previewFromUrl()">
 
         <hr>
-        <div class="flex" style="margin-top:4px;">
+        <div style="margin-top:4px;">
+          <button class="btn" onclick="sendPreview()" style="width:100%;background:#7c3aed;">
+            👁 Отправить себе в Telegram
+          </button>
+        </div>
+        <div class="flex" style="margin-top:8px;gap:8px;">
           <button class="btn btn-green" onclick="saveToQueue()" style="flex:1;">
             💾 Сохранить в очередь
           </button>
-        </div>
-        <div style="margin-top:8px;">
-          <button class="btn btn-blue" onclick="publishNow()" style="width:100%;">
+          <button class="btn btn-blue" onclick="publishNow()" style="flex:1;">
             🚀 Опубликовать сейчас
           </button>
         </div>
@@ -571,6 +574,21 @@ async function saveToQueue() {
     body: JSON.stringify({
       day: parseInt(document.getElementById('create-day').value),
       post_type: document.getElementById('create-type').value,
+      text,
+      photo_b64: currentPhotoB64,
+      photo_url: document.getElementById('photo-url').value.trim()
+    })
+  });
+  toast(d.message || d.error, d.ok ? 'ok' : 'err');
+}
+
+async function sendPreview() {
+  const text = document.getElementById('create-text').value.trim();
+  if (!text) { toast('Введи текст поста', 'err'); return; }
+  toast('Отправляю...');
+  const d = await api('/api/send_preview', {
+    method: 'POST',
+    body: JSON.stringify({
       text,
       photo_b64: currentPhotoB64,
       photo_url: document.getElementById('photo-url').value.trim()

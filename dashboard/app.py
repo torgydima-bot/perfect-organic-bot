@@ -70,13 +70,15 @@ def get_channel_views():
 # Load config keys
 try:
     from config import (BOT_TOKEN, GROQ_API_KEY, OPENAI_API_KEY, TOGETHER_API_KEY,
-                        TARGET_CHANNEL, SHOP_LINK, METRIKA_TOKEN, METRIKA_COUNTER_ID)
+                        TARGET_CHANNEL, SHOP_LINK, METRIKA_TOKEN, METRIKA_COUNTER_ID,
+                        OWNER_CHAT_ID)
 except Exception:
     BOT_TOKEN = GROQ_API_KEY = OPENAI_API_KEY = TOGETHER_API_KEY = ""
     TARGET_CHANNEL = "@perfektorganic"
     SHOP_LINK = "https://perfect-org.ru/"
     METRIKA_TOKEN = ""
     METRIKA_COUNTER_ID = ""
+    OWNER_CHAT_ID = 326905536
 
 try:
     from content_plan import HEALTH_PROGRAM_URLS
@@ -398,6 +400,47 @@ def api_publish_now():
             stats.append(entry)
             save_stats(stats)
         return jsonify({"ok": True, "message": "Опубликовано в канал!"})
+    else:
+        return jsonify({"ok": False, "error": result.get("description", "Ошибка Telegram")})
+
+
+# ─── Send preview to owner ──────────────────────────────────────────────────
+
+@app.route("/api/send_preview", methods=["POST"])
+@login_required
+def api_send_preview():
+    data = request.get_json()
+    text = data.get("text", "").strip()
+    photo_b64 = data.get("photo_b64", "")
+    photo_url = data.get("photo_url", "").strip()
+
+    if not text:
+        return jsonify({"ok": False, "error": "Нет текста"})
+
+    tg_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
+    chat_id = str(OWNER_CHAT_ID)
+
+    if photo_b64:
+        photo_bytes = base64.b64decode(photo_b64)
+        caption = text if len(text) <= 1024 else text[:1020] + "..."
+        r = requests.post(f"{tg_url}/sendPhoto",
+                          data={"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"},
+                          files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")})
+        if len(text) > 1024:
+            requests.post(f"{tg_url}/sendMessage",
+                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+    elif photo_url:
+        caption = text if len(text) <= 1024 else text[:1020] + "..."
+        r = requests.post(f"{tg_url}/sendPhoto",
+                          json={"chat_id": chat_id, "photo": photo_url,
+                                "caption": caption, "parse_mode": "HTML"})
+    else:
+        r = requests.post(f"{tg_url}/sendMessage",
+                          json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
+
+    result = r.json()
+    if result.get("ok"):
+        return jsonify({"ok": True, "message": "Пост отправлен вам в Telegram!"})
     else:
         return jsonify({"ok": False, "error": result.get("description", "Ошибка Telegram")})
 
