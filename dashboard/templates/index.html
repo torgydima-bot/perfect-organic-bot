@@ -397,7 +397,8 @@ async function loadQueue() {
     const isToday = day === todayMon;
 
     const card = document.createElement('div');
-    card.className = 'day-card' + (hasPost ? ' has-post' : '') + (isToday ? ' today' : '');
+    const isEditing = day === currentDay;
+    card.className = 'day-card' + (hasPost ? ' has-post' : '') + (isToday ? ' today' : '') + (isEditing ? ' editing' : '');
     card.onclick = () => showDayDetail(day);
     card.innerHTML = `
       <div class="day-name">${names[day]}${isToday ? ' ●' : ''}</div>
