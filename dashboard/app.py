@@ -21,6 +21,19 @@ SERVICE_NAME = "perfectorganic-bot"
 UPLOADS_DIR = "/opt/dashboard/uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 STATS_FILE = os.path.join(BOT_DIR, "post_stats.json")
+CUSTOM_PROMPTS_FILE = "/opt/dashboard/custom_prompts.json"
+
+
+def load_custom_prompts():
+    if os.path.exists(CUSTOM_PROMPTS_FILE):
+        with open(CUSTOM_PROMPTS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_custom_prompts(data):
+    with open(CUSTOM_PROMPTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def load_stats():
@@ -519,6 +532,28 @@ def api_send_preview():
 
     threading.Thread(target=_send, daemon=True).start()
     return jsonify({"ok": True, "message": "Отправляю в Telegram... придёт через несколько секунд"})
+
+
+# ─── Prompts API ────────────────────────────────────────────────────────────
+
+@app.route("/api/prompts", methods=["GET"])
+@login_required
+def api_get_prompts():
+    return jsonify(load_custom_prompts())
+
+
+@app.route("/api/prompts/<post_type>", methods=["POST"])
+@login_required
+def api_save_prompt(post_type):
+    data = request.get_json()
+    prompts = load_custom_prompts()
+    text = data.get("prompt", "").strip()
+    if text:
+        prompts[post_type] = text
+    else:
+        prompts.pop(post_type, None)  # пустой текст = сброс к дефолту
+    save_custom_prompts(prompts)
+    return jsonify({"ok": True, "message": "Правило сохранено" if text else "Сброшено на дефолт"})
 
 
 # ─── AI Text generation ─────────────────────────────────────────────────────
