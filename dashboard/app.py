@@ -110,9 +110,10 @@ def get_review_posts(channel):
             text_el = msg.find('div', class_='tgme_widget_message_text')
             text = text_el.get_text(separator='\n', strip=True) if text_el else ''
             photo_url = None
-            photo_wrap = msg.find('a', class_='tgme_widget_message_photo_wrap')
-            if photo_wrap:
-                style = photo_wrap.get('style', '')
+            all_photo_wraps = msg.find_all('a', class_='tgme_widget_message_photo_wrap')
+            # Пропускаем альбомы (несколько фото) — их превью это сетка, не одно фото
+            if len(all_photo_wraps) == 1:
+                style = all_photo_wraps[0].get('style', '')
                 m = re.search(r"url\('([^']+)'\)", style)
                 if m:
                     photo_url = m.group(1)
