@@ -745,12 +745,7 @@ async function restartDashboard() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 loadQueue();
-// sync day type selector when day changes
-document.getElementById('create-day').addEventListener('change', function() {
-  const schedule = {{ weekly_schedule | tojson }};
-  const type = schedule[this.value] || 'expert';
-  document.getElementById('create-type').value = type;
-});
+syncPostType();
 setInterval(loadStatus, 15000);
 </script>
 </body>
