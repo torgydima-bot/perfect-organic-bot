@@ -625,9 +625,12 @@ def api_generate_text():
                 adapted = result["choices"][0]["message"]["content"].strip()
         except Exception:
             adapted = original_text
-        # Заменяем "Perfect Organic" на ссылку
+        # Заменяем ключевые слова на ссылки
         adapted = adapted.replace("Perfect Organics", f'<a href="{SHOP_LINK}">Perfect Organic</a>')
         adapted = adapted.replace("Perfect Organic", f'<a href="{SHOP_LINK}">Perfect Organic</a>')
+        adapted = re.sub(r'сбалансированн\w+ питани\w+',
+                         f'<a href="https://perfect-org.ru/programi">сбалансированному питанию</a>',
+                         adapted, flags=re.IGNORECASE)
         return jsonify({"ok": True, "text": adapted, "photo_url": photo_url, "post_id": post['id']})
 
     # Для program — скрапим сайт и строим промпт из реального текста
