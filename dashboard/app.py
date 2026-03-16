@@ -247,8 +247,18 @@ def logout():
 @app.route("/")
 @login_required
 def index():
+    default_prompts = {
+        "expert": f"Напиши экспертный пост от лица врача-нутрициолога. Тема: {{topic}}. 3-4 абзаца, 200-250 слов. HTML <b>теги</b>, эмодзи.",
+        "viral":  f"Напиши вирусный пост. Тема: {{topic}}. Крючок → проблема → решение → призыв. 200-230 слов.",
+        "sales":  f"Напиши продающий пост о продукте {{topic}}. Боль → решение → выгоды → призыв. 200-250 слов.",
+        "partner": "Напиши пост о партнёрской программе. Возможности заработка, призыв вступить. 200-250 слов.",
+        "lifestyle": "Напиши тёплый пост о компании. Ценности, забота о клиентах. 180-220 слов.",
+        "faq":    "Напиши пост вопрос-ответ. Тема: {topic}. Вопрос → развёрнутый ответ эксперта. 180-220 слов.",
+        "review": "Перефразируй отзыв покупателя. Сохрани смысл, убери хэштеги и ссылки. Только текст.",
+        "program": "Напиши пост о программе здоровья. Начни с обращения. Проблема → состав программы → призыв. 200-240 слов.",
+    }
     return render_template("index.html", weekdays=WEEKDAYS, post_types=POST_TYPES,
-                           weekly_schedule=WEEKLY_SCHEDULE)
+                           weekly_schedule=WEEKLY_SCHEDULE, default_prompts=default_prompts)
 
 
 # ─── Bot management ─────────────────────────────────────────────────────────
@@ -701,7 +711,8 @@ def api_generate_text():
                 f"В самом конце добавь точно эту строку: 🌿 <a href=\"{prog_url}\">Подробнее о программе «{prog_title}»</a>"
             )
     else:
-        prompt = prompts.get(post_type, prompts["expert"])
+        custom = load_custom_prompts().get(post_type)
+        prompt = custom if custom else prompts.get(post_type, prompts["expert"])
 
     if not GROQ_API_KEY:
         return jsonify({"ok": False, "error": "GROQ_API_KEY не настроен"})
