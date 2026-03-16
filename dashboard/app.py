@@ -502,8 +502,20 @@ def api_send_preview():
 
     def _send():
         try:
+            # Получаем байты фото
+            photo_bytes = None
             if photo_b64:
                 photo_bytes = base64.b64decode(photo_b64)
+            elif photo_url:
+                # Скачиваем сами — Telegram API не может получить CDN-ссылки telesco.pe
+                try:
+                    resp = requests.get(photo_url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+                    if resp.status_code == 200:
+                        photo_bytes = resp.content
+                except Exception as e:
+                    print(f"[send_preview] photo download failed: {e}")
+
+            if photo_bytes:
                 if len(text) <= 1024:
                     requests.post(f"{tg_url}/sendPhoto",
                                   data={"chat_id": chat_id, "caption": text,
@@ -513,20 +525,6 @@ def api_send_preview():
                     r2 = requests.post(f"{tg_url}/sendPhoto",
                                        data={"chat_id": chat_id},
                                        files={"photo": ("photo.jpg", photo_bytes, "image/jpeg")}, timeout=60)
-                    if r2.json().get("ok"):
-                        requests.post(f"{tg_url}/sendMessage",
-                                      json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
-                                            "disable_web_page_preview": True,
-                                            "reply_markup": ASK_BUTTON}, timeout=15)
-            elif photo_url:
-                if len(text) <= 1024:
-                    requests.post(f"{tg_url}/sendPhoto",
-                                  json={"chat_id": chat_id, "photo": photo_url,
-                                        "caption": text, "parse_mode": "HTML",
-                                        "reply_markup": ASK_BUTTON}, timeout=15)
-                else:
-                    r2 = requests.post(f"{tg_url}/sendPhoto",
-                                       json={"chat_id": chat_id, "photo": photo_url}, timeout=15)
                     if r2.json().get("ok"):
                         requests.post(f"{tg_url}/sendMessage",
                                       json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",

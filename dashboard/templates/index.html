@@ -60,6 +60,7 @@ header a:hover { color: #fff; }
 .day-card:hover { border-color: #2563eb; }
 .day-card.has-post { border-color: #166534; }
 .day-card.today { border-color: #d97706; }
+.day-card.editing { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.25); background: #1a0f2e; }
 .day-name { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
 .day-type { font-size: 12px; color: #9ca3af; margin-top: 4px; }
 .day-status { margin-top: 10px; }
@@ -81,8 +82,8 @@ label { font-size: 12px; color: #888; display: block; margin-bottom: 6px; margin
 label:first-child { margin-top: 0; }
 
 /* Photo preview */
-.photo-preview { width: 100%; aspect-ratio: 4/3; background: #0f1117; border: 1px dashed #2d3250; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
-.photo-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.photo-preview { width: 100%; background: #0f1117; border: 1px dashed #2d3250; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 160px; }
+.photo-preview img { width: 100%; height: auto; object-fit: contain; border-radius: 10px; display: block; }
 .photo-preview .placeholder { color: #555; font-size: 13px; text-align: center; padding: 20px; }
 .photo-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
@@ -178,9 +179,6 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
 
 <!-- ═══ CREATE PAGE ══════════════════════════════════════════════════════ -->
 <div id="page-create" class="page">
-  <div id="edit-banner" style="display:none;background:#3b1fa8;color:#fff;padding:8px 16px;border-radius:8px;margin-bottom:12px;font-size:14px;">
-    ✏️ Редактирование: <span id="edit-banner-day"></span>
-  </div>
   <div class="card">
     <div class="editor-grid">
       <!-- LEFT: text -->
@@ -357,7 +355,6 @@ function showPage(name, btn) {
   if (name === 'queue') loadQueue();
   if (name === 'stats') loadStats();
   if (name === 'system') { loadStatus(); loadLogs(); }
-  if (name !== 'create') document.getElementById('edit-banner').style.display = 'none';
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -449,11 +446,8 @@ function editDay() {
     document.getElementById('create-text').value = post.text || '';
     updateCharCount();
   }
-  // Показываем баннер на странице создания
-  const dayNames = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
-  const banner = document.getElementById('edit-banner');
-  document.getElementById('edit-banner-day').textContent = dayNames[currentDay];
-  banner.style.display = 'block';
+  // Подсвечиваем выбранную карточку (сохраняется при возврате в очередь)
+  document.querySelectorAll('.day-card').forEach((c, i) => c.classList.toggle('editing', i === currentDay));
   const names = document.querySelectorAll('.nav button');
   showPage('create', names[1]);
 }
