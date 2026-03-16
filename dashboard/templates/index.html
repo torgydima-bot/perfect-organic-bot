@@ -184,23 +184,18 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
       <div>
         <div class="section-title">Текст поста</div>
 
-        <div class="flex" style="margin-bottom:14px;">
-          <div style="flex:1;">
-            <label>День недели</label>
-            <select id="create-day">
-              {% for day, name in weekdays.items() %}
-              <option value="{{ day }}">{{ name }} — {{ post_types.get(weekly_schedule.get(day,''), '') }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div style="flex:1;">
-            <label>Тип поста</label>
-            <select id="create-type">
-              {% for key, label in post_types.items() %}
-              <option value="{{ key }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
+        <div style="margin-bottom:14px;">
+          <label>День недели</label>
+          <select id="create-day" onchange="syncPostType()">
+            {% for day, name in weekdays.items() %}
+            <option value="{{ day }}">{{ name }} — {{ post_types.get(weekly_schedule.get(day,''), '') }}</option>
+            {% endfor %}
+          </select>
+          <select id="create-type" style="display:none;">
+            {% for key, label in post_types.items() %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <label>Тема / ключевые слова (для генерации)</label>

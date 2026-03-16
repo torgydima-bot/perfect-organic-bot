@@ -166,13 +166,13 @@ def scrape_program_page(url):
 WEEKDAYS = {0: "Понедельник", 1: "Вторник", 2: "Среда",
             3: "Четверг", 4: "Пятница", 5: "Суббота", 6: "Воскресенье"}
 POST_TYPES = {
-    "expert": "Экспертный (врач)",
-    "review": "Отзыв",
-    "partner": "Партнёрская программа",
-    "sales": "Продающий",
-    "lifestyle": "О компании",
-    "viral": "Вирусный",
-    "faq": "Вопрос-ответ",
+    "expert": "🩺 Экспертный (врач)",
+    "review": "⭐ Отзыв",
+    "partner": "🤝 Партнёрская программа",
+    "sales": "🛒 Продающий",
+    "lifestyle": "🌱 О компании",
+    "viral": "🔥 Вирусный",
+    "faq": "❓ Вопрос-ответ",
     "program": "🌿 Программа здоровья"
 }
 WEEKLY_SCHEDULE = {0: "expert", 1: "review", 2: "partner",
@@ -609,7 +609,8 @@ def api_generate_text():
                         f"Перефразируй этот отзыв о добавках для Telegram канала Perfect Organic. "
                         f"Сохрани смысл, эмоции и конкретику. Немного измени формулировки. "
                         f"Убери упоминания других каналов или брендов. "
-                        f"В конце добавь строку: 🛒 Заказать: {SHOP_LINK}\n\n"
+                        f"НЕ добавляй хэштеги. НЕ добавляй ссылки. НЕ добавляй строку 'Заказать'. "
+                        f"Только чистый текст отзыва. Добавляй эмодзи для живости.\n\n"
                         f"Оригинал:\n{original_text}"
                     )}],
                     "max_tokens": 400,
@@ -619,11 +620,14 @@ def api_generate_text():
             )
             result = r.json()
             if "choices" not in result:
-                adapted = original_text + f"\n\n🛒 Заказать: {SHOP_LINK}"
+                adapted = original_text
             else:
                 adapted = result["choices"][0]["message"]["content"].strip()
         except Exception:
-            adapted = original_text + f"\n\n🛒 Заказать: {SHOP_LINK}"
+            adapted = original_text
+        # Заменяем "Perfect Organic" на ссылку
+        adapted = adapted.replace("Perfect Organics", f'<a href="{SHOP_LINK}">Perfect Organic</a>')
+        adapted = adapted.replace("Perfect Organic", f'<a href="{SHOP_LINK}">Perfect Organic</a>')
         return jsonify({"ok": True, "text": adapted, "photo_url": photo_url, "post_id": post['id']})
 
     # Для program — скрапим сайт и строим промпт из реального текста
