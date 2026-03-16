@@ -433,12 +433,17 @@ function showDayDetail(day) {
 function editDay() {
   if (currentDay === null) return;
   const post = queueData[currentDay];
-  // switch to create page and prefill
   document.getElementById('create-day').value = currentDay;
+  syncPostType();
   if (post) {
     document.getElementById('create-text').value = post.text || '';
     updateCharCount();
   }
+  // Подсвечиваем выбранный день в очереди
+  document.querySelectorAll('.day-card').forEach((c, i) => {
+    c.style.outline = i === currentDay ? '2px solid #7c3aed' : '';
+    c.style.boxShadow = i === currentDay ? '0 0 0 3px rgba(124,58,237,0.3)' : '';
+  });
   const names = document.querySelectorAll('.nav button');
   showPage('create', names[1]);
 }
@@ -465,6 +470,15 @@ async function publishDay() {
 }
 
 // ── Create page ────────────────────────────────────────────────────────────
+const WEEKLY_SCHEDULE_JS = {{ weekly_schedule | tojson }};
+
+function syncPostType() {
+  const day = parseInt(document.getElementById('create-day').value);
+  const type = WEEKLY_SCHEDULE_JS[day] || 'expert';
+  const sel = document.getElementById('create-type');
+  sel.value = type;
+}
+
 function updateCharCount() {
   const text = document.getElementById('create-text').value;
   const len = text.length;
