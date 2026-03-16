@@ -421,6 +421,7 @@ async function loadQueue() {
 
 function showDayDetail(day) {
   currentDay = day;
+  document.querySelectorAll('.day-card').forEach((c, i) => c.classList.toggle('editing', i === day));
   const names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
   const post = queueData[day];
   const detail = document.getElementById('day-detail');
