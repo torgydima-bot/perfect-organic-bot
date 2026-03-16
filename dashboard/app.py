@@ -80,6 +80,43 @@ except Exception:
     METRIKA_COUNTER_ID = ""
     OWNER_CHAT_ID = 326905536
 
+REVIEW_CHANNEL = "P_Organics_product"
+POSTED_IDS_FILE = os.path.join(BOT_DIR, "posted_ids.json")
+
+
+def get_review_posts(channel):
+    """Парсит посты с фото из публичного Telegram-канала."""
+    url = f"https://t.me/s/{channel}"
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        posts = []
+        for msg in soup.find_all('div', class_='tgme_widget_message'):
+            post_id = msg.get('data-post', '')
+            text_el = msg.find('div', class_='tgme_widget_message_text')
+            text = text_el.get_text(separator='\n', strip=True) if text_el else ''
+            photo_url = None
+            photo_wrap = msg.find('a', class_='tgme_widget_message_photo_wrap')
+            if photo_wrap:
+                style = photo_wrap.get('style', '')
+                m = re.search(r"url\('([^']+)'\)", style)
+                if m:
+                    photo_url = m.group(1)
+            if post_id and (len(text) > 20 or photo_url):
+                posts.append({'id': post_id, 'text': text, 'photo_url': photo_url})
+        return posts
+    except Exception as e:
+        print(f"[review] parse error: {e}")
+        return []
+
+
+def load_posted_ids():
+    if os.path.exists(POSTED_IDS_FILE):
+        with open(POSTED_IDS_FILE, 'r') as f:
+            return set(json.load(f))
+    return set()
+
 OWNER_TG_LINK = "https://t.me/DmitriyPO"
 ASK_BUTTON = {"inline_keyboard": [[{"text": "💬 Задать вопрос", "url": OWNER_TG_LINK}]]}
 
@@ -541,6 +578,48 @@ def api_generate_text():
             f"Тема/продукт: «{topic or 'витамины'}». От лица покупателя, 2-3 предложения. {cta_note}"
         ),
     }
+
+    # Для review — берём реальный отзыв из канала
+    if post_type == "review":
+        import random as _random
+        posts = get_review_posts(REVIEW_CHANNEL)
+        posted_ids = load_posted_ids()
+        available = [p for p in posts if p['id'] not in posted_ids]
+        if not available:
+            available = posts  # если все использованы — повторяем
+        if not available:
+            return jsonify({"ok": False, "error": "Не удалось получить отзывы из канала"})
+        post = _random.choice(available)
+        original_text = post['text']
+        photo_url = post.get('photo_url') or ''
+        if not GROQ_API_KEY:
+            return jsonify({"ok": False, "error": "GROQ_API_KEY не настроен"})
+        try:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": (
+                        f"Перефразируй этот отзыв о добавках для Telegram канала Perfect Organic. "
+                        f"Сохрани смысл, эмоции и конкретику. Немного измени формулировки. "
+                        f"Убери упоминания других каналов или брендов. "
+                        f"В конце добавь строку: 🛒 Заказать: {SHOP_LINK}\n\n"
+                        f"Оригинал:\n{original_text}"
+                    )}],
+                    "max_tokens": 400,
+                    "temperature": 0.7
+                },
+                timeout=30
+            )
+            result = r.json()
+            if "choices" not in result:
+                adapted = original_text + f"\n\n🛒 Заказать: {SHOP_LINK}"
+            else:
+                adapted = result["choices"][0]["message"]["content"].strip()
+        except Exception:
+            adapted = original_text + f"\n\n🛒 Заказать: {SHOP_LINK}"
+        return jsonify({"ok": True, "text": adapted, "photo_url": photo_url, "post_id": post['id']})
 
     # Для program — скрапим сайт и строим промпт из реального текста
     if post_type == "program":

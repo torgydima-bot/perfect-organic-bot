@@ -499,7 +499,14 @@ async function generateText() {
   if (d.ok) {
     document.getElementById('create-text').value = d.text;
     updateCharCount();
-    toast('Текст сгенерирован!', 'ok');
+    // Для review — сразу показываем фото из отзыва
+    if (d.photo_url) {
+      document.getElementById('photo-url').value = d.photo_url;
+      showPhotoPreview(d.photo_url);
+      toast('Текст и фото из отзыва загружены!', 'ok');
+    } else {
+      toast('Текст сгенерирован!', 'ok');
+    }
   } else {
     toast('Ошибка: ' + d.error, 'err');
   }
