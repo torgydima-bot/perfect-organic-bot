@@ -594,7 +594,9 @@ def api_generate_text():
             available = posts  # если все использованы — повторяем
         if not available:
             return jsonify({"ok": False, "error": "Не удалось получить отзывы из канала"})
-        post = _random.choice(available)
+        # Предпочитаем посты с фото
+        with_photo = [p for p in available if p.get('photo_url')]
+        post = _random.choice(with_photo if with_photo else available)
         original_text = post['text']
         photo_url = post.get('photo_url') or ''
         if not GROQ_API_KEY:

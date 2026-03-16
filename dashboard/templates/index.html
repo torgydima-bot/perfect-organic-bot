@@ -178,6 +178,9 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
 
 <!-- ═══ CREATE PAGE ══════════════════════════════════════════════════════ -->
 <div id="page-create" class="page">
+  <div id="edit-banner" style="display:none;background:#3b1fa8;color:#fff;padding:8px 16px;border-radius:8px;margin-bottom:12px;font-size:14px;">
+    ✏️ Редактирование: <span id="edit-banner-day"></span>
+  </div>
   <div class="card">
     <div class="editor-grid">
       <!-- LEFT: text -->
@@ -354,6 +357,7 @@ function showPage(name, btn) {
   if (name === 'queue') loadQueue();
   if (name === 'stats') loadStats();
   if (name === 'system') { loadStatus(); loadLogs(); }
+  if (name !== 'create') document.getElementById('edit-banner').style.display = 'none';
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -439,11 +443,11 @@ function editDay() {
     document.getElementById('create-text').value = post.text || '';
     updateCharCount();
   }
-  // Подсвечиваем выбранный день в очереди
-  document.querySelectorAll('.day-card').forEach((c, i) => {
-    c.style.outline = i === currentDay ? '2px solid #7c3aed' : '';
-    c.style.boxShadow = i === currentDay ? '0 0 0 3px rgba(124,58,237,0.3)' : '';
-  });
+  // Показываем баннер на странице создания
+  const dayNames = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  const banner = document.getElementById('edit-banner');
+  document.getElementById('edit-banner-day').textContent = dayNames[currentDay];
+  banner.style.display = 'block';
   const names = document.querySelectorAll('.nav button');
   showPage('create', names[1]);
 }
