@@ -103,6 +103,11 @@ def get_review_posts(channel):
                 m = re.search(r"url\('([^']+)'\)", style)
                 if m:
                     photo_url = m.group(1)
+            # Если нет фото — берём poster из видео (скриншот видео)
+            if not photo_url:
+                video_el = msg.find('video')
+                if video_el:
+                    photo_url = video_el.get('poster') or None
             if post_id and (len(text) > 20 or photo_url):
                 posts.append({'id': post_id, 'text': text, 'photo_url': photo_url})
         return posts
