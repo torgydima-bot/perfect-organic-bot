@@ -97,6 +97,43 @@ REVIEW_CHANNEL = "P_Organics_product"
 POSTED_IDS_FILE = os.path.join(BOT_DIR, "posted_ids.json")
 
 
+def scrape_product_page(url):
+    """Скрапит страницу продукта: описание, состав."""
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        resp = requests.get(url, headers=headers, timeout=15)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        for tag in soup(['nav', 'header', 'footer', 'script', 'style']):
+            tag.decompose()
+        full_text = soup.get_text(separator='\n', strip=True)
+        # Состав
+        composition = ""
+        comp_keywords = ['состав', 'ингредиент', 'компонент']
+        lines = full_text.splitlines()
+        for i, line in enumerate(lines):
+            if any(kw in line.lower() for kw in comp_keywords):
+                chunk = '\n'.join(lines[i:i+12]).strip()
+                if len(chunk) > 30:
+                    composition = chunk[:600]
+                    break
+        # Описание
+        description = ""
+        for sel in ['article', 'main', '.detail_text', '.product-description', '.content']:
+            el = soup.find(sel) if not sel.startswith('.') else soup.find(class_=sel[1:])
+            if el:
+                txt = el.get_text(separator='\n', strip=True)
+                if len(txt) > 100:
+                    description = txt[:1200]
+                    break
+        if not description:
+            paras = [p.get_text(strip=True) for p in soup.find_all('p') if len(p.get_text(strip=True)) > 40]
+            description = '\n'.join(paras[:10])[:1200]
+        return {'description': description, 'composition': composition}
+    except Exception as e:
+        print(f"[scrape] error: {e}")
+        return {'description': '', 'composition': ''}
+
+
 def get_review_posts(channel):
     """Парсит посты с фото из публичного Telegram-канала."""
     url = f"https://t.me/s/{channel}"
@@ -575,7 +612,6 @@ def api_generate_text():
     topic = data.get("topic", "")
 
     cta_note = "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки**. Никаких других HTML-тегов кроме <b>. Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами."
-    sales_photo_url = None
     prompts = {
         "expert": (
             f"Напиши экспертный пост для Telegram канала Perfect Organic от лица врача-нутрициолога.\n"
@@ -638,29 +674,19 @@ def api_generate_text():
                 import random as _rnd
                 product_name, product_url = _rnd.choice(list(PRODUCTS.items()))
                 display_name = re.sub(r'\s+\d+$', '', product_name)
-                # Скрапим описание и состав
-                product_info = {}
-                try:
-                    from bot import scrape_product_page
-                    product_info = scrape_product_page(product_url)
-                except Exception:
-                    pass
+                product_info = scrape_product_page(product_url)
                 desc = product_info.get('description', '')[:1000]
                 composition = product_info.get('composition', '')[:500]
                 comp_block = f"\nСостав продукта:\n{composition}\n" if composition else ""
-                photo_url = product_info.get('image_url', '')
                 prompts["sales"] = (
                     f"Напиши продающий пост для Telegram канала Перфект Органик о продукте «{display_name}».\n"
                     + (f"Информация о продукте с сайта:\n{desc}\n{comp_block}\n" if desc else "")
-                    + f"ВАЖНО: пиши ТОЛЬКО о конкретном продукте «{display_name}» — не пиши обобщённо.\n"
+                    + f"ВАЖНО: пиши ТОЛЬКО о конкретном продукте «{display_name}» на основе описания и состава выше — не придумывай, используй реальные данные с сайта.\n"
                     f"Упомяни 2-3 ключевых компонента из состава и кратко объясни их пользу.\n"
-                    f"Структура: первая строка — цепляющий заголовок с «{display_name}» в тегах <b>...</b>, затем боль/проблема → как продукт решает → 3-4 выгоды ✅ → итог.\n"
+                    f"Структура: первая строка — цепляющий заголовок с «{display_name}» в тегах <b>...</b>, затем для кого этот продукт → какие проблемы решает → 3-4 выгоды ✅ → итог.\n"
                     f"В конце: <a href='{product_url}'>Заказать {display_name}</a>\n"
                     f"200-250 слов. {cta_note}"
                 )
-                # Возвращаем фото продукта с сайта
-                if photo_url:
-                    sales_photo_url = photo_url
         except Exception as e:
             print(f"[sales product] error: {e}")
 
@@ -794,10 +820,7 @@ def api_generate_text():
         max_len = 1280 if post_type == "program" else 1100
         if len(text) > max_len:
             text = text[:max_len - 20] + "..."
-        resp = {"ok": True, "text": text}
-        if sales_photo_url:
-            resp["photo_url"] = sales_photo_url
-        return jsonify(resp)
+        return jsonify({"ok": True, "text": text})
     except requests.exceptions.Timeout:
         return jsonify({"ok": False, "error": "Groq не ответил за 30 секунд, попробуйте ещё раз"})
     except Exception as e:
