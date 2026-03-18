@@ -738,7 +738,7 @@ def api_generate_text():
                     },
                     {"role": "user", "content": prompt},
                 ],
-                "max_tokens": 900 if post_type == "program" else 600,
+                "max_tokens": 900 if post_type == "program" else 800,
                 "temperature": 0.8
             },
             timeout=30
@@ -755,7 +755,7 @@ def api_generate_text():
                 err_msg = str(result)[:300]
             return jsonify({"ok": False, "error": f"Groq: {err_msg}"})
         text = result["choices"][0]["message"]["content"]
-        max_len = 1280 if post_type == "program" else 980
+        max_len = 1280 if post_type == "program" else 1100
         if len(text) > max_len:
             text = text[:max_len - 20] + "..."
         return jsonify({"ok": True, "text": text})
