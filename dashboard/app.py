@@ -100,7 +100,11 @@ POSTED_IDS_FILE = os.path.join(BOT_DIR, "posted_ids.json")
 def scrape_product_page(url):
     """Скрапит страницу продукта: описание, состав."""
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9',
+        }
         resp = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(resp.text, 'html.parser')
         for tag in soup(['nav', 'header', 'footer', 'script', 'style']):
@@ -123,11 +127,11 @@ def scrape_product_page(url):
             if el:
                 txt = el.get_text(separator='\n', strip=True)
                 if len(txt) > 100:
-                    description = txt[:1200]
+                    description = txt[:2500]
                     break
         if not description:
             paras = [p.get_text(strip=True) for p in soup.find_all('p') if len(p.get_text(strip=True)) > 40]
-            description = '\n'.join(paras[:10])[:1200]
+            description = '\n'.join(paras[:15])[:2500]
         return {'description': description, 'composition': composition}
     except Exception as e:
         print(f"[scrape] error: {e}")
@@ -675,7 +679,7 @@ def api_generate_text():
                 product_name, product_url = _rnd.choice(list(PRODUCTS.items()))
                 display_name = re.sub(r'\s+\d+$', '', product_name)
                 product_info = scrape_product_page(product_url)
-                desc = product_info.get('description', '')[:1000]
+                desc = product_info.get('description', '')[:2000]
                 composition = product_info.get('composition', '')[:500]
                 comp_block = f"\nСостав продукта:\n{composition}\n" if composition else ""
                 prompts["sales"] = (
