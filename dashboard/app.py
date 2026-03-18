@@ -575,6 +575,7 @@ def api_generate_text():
     topic = data.get("topic", "")
 
     cta_note = "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки**. Никаких других HTML-тегов кроме <b>. Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами."
+    sales_photo_url = None
     prompts = {
         "expert": (
             f"Напиши экспертный пост для Telegram канала Perfect Organic от лица врача-нутрициолога.\n"
@@ -627,6 +628,41 @@ def api_generate_text():
             f"Тема/продукт: «{topic or 'витамины'}». От лица покупателя, 2-3 предложения. {cta_note}"
         ),
     }
+
+    # Для sales — берём случайный продукт из каталога и скрапим его страницу
+    if post_type == "sales" and not topic:
+        try:
+            sys.path.insert(0, os.path.join(BOT_DIR, "telegram_bot"))
+            from products import PRODUCTS
+            if PRODUCTS:
+                import random as _rnd
+                product_name, product_url = _rnd.choice(list(PRODUCTS.items()))
+                display_name = re.sub(r'\s+\d+$', '', product_name)
+                # Скрапим описание и состав
+                product_info = {}
+                try:
+                    from bot import scrape_product_page
+                    product_info = scrape_product_page(product_url)
+                except Exception:
+                    pass
+                desc = product_info.get('description', '')[:1000]
+                composition = product_info.get('composition', '')[:500]
+                comp_block = f"\nСостав продукта:\n{composition}\n" if composition else ""
+                photo_url = product_info.get('image_url', '')
+                prompts["sales"] = (
+                    f"Напиши продающий пост для Telegram канала Перфект Органик о продукте «{display_name}».\n"
+                    + (f"Информация о продукте с сайта:\n{desc}\n{comp_block}\n" if desc else "")
+                    + f"ВАЖНО: пиши ТОЛЬКО о конкретном продукте «{display_name}» — не пиши обобщённо.\n"
+                    f"Упомяни 2-3 ключевых компонента из состава и кратко объясни их пользу.\n"
+                    f"Структура: первая строка — цепляющий заголовок с «{display_name}» в тегах <b>...</b>, затем боль/проблема → как продукт решает → 3-4 выгоды ✅ → итог.\n"
+                    f"В конце: <a href='{product_url}'>Заказать {display_name}</a>\n"
+                    f"200-250 слов. {cta_note}"
+                )
+                # Возвращаем фото продукта с сайта
+                if photo_url:
+                    sales_photo_url = photo_url
+        except Exception as e:
+            print(f"[sales product] error: {e}")
 
     # Для review — берём реальный отзыв из канала
     if post_type == "review":
@@ -758,7 +794,10 @@ def api_generate_text():
         max_len = 1280 if post_type == "program" else 1100
         if len(text) > max_len:
             text = text[:max_len - 20] + "..."
-        return jsonify({"ok": True, "text": text})
+        resp = {"ok": True, "text": text}
+        if sales_photo_url:
+            resp["photo_url"] = sales_photo_url
+        return jsonify(resp)
     except requests.exceptions.Timeout:
         return jsonify({"ok": False, "error": "Groq не ответил за 30 секунд, попробуйте ещё раз"})
     except Exception as e:
