@@ -370,11 +370,16 @@ function toast(msg, type='') {
 async function api(url, opts={}) {
   try {
     const r = await fetch(url, {
+      credentials: 'same-origin',
       headers: {'Content-Type': 'application/json'},
       ...opts
     });
-    const data = await r.json();
-    return data;
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    if (!ct.includes('application/json')) {
+      if (r.status === 401) return {ok: false, error: 'Сессия истекла — войдите снова'};
+      return {ok: false, error: 'Неверный ответ сервера (возможно, сессия сброшена)'};
+    }
+    return await r.json();
   } catch(e) {
     return {ok: false, error: 'Сетевая ошибка: ' + e.message};
   }
@@ -557,15 +562,34 @@ async function generatePhoto() {
 async function uploadPhoto(input) {
   const file = input.files[0];
   if (!file) return;
+  const maxBytes = 15 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    toast('Файл больше 15 МБ', 'err');
+    input.value = '';
+    return;
+  }
   const form = new FormData();
   form.append('photo', file);
-  const r = await fetch('/api/upload_photo', {method:'POST', body: form});
-  const d = await r.json();
-  if (d.ok) {
-    currentPhotoB64 = d.photo_b64;
-    showPhotoPreview(URL.createObjectURL(file));
-    toast('Фото загружено', 'ok');
+  try {
+    const r = await fetch('/api/upload_photo', {method: 'POST', body: form, credentials: 'same-origin'});
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    if (!ct.includes('application/json')) {
+      toast('Сессия истекла — обнови страницу и войди снова', 'err');
+      input.value = '';
+      return;
+    }
+    const d = await r.json();
+    if (d.ok) {
+      currentPhotoB64 = d.photo_b64;
+      showPhotoPreview(URL.createObjectURL(file));
+      toast('Фото загружено', 'ok');
+    } else {
+      toast('Ошибка: ' + (d.error || ('HTTP ' + r.status)), 'err');
+    }
+  } catch (e) {
+    toast('Сетевая ошибка: ' + e.message, 'err');
   }
+  input.value = '';
 }
 
 function previewFromUrl() {
@@ -710,14 +734,35 @@ function closePostModal(event, force) {
 // ── System page ─────────────────────────────────────────────────────────────
 async function loadStatus() {
   const d = await api('/api/status');
-  document.getElementById('dot').className = 'dot ' + (d.running ? 'on' : 'off');
-  document.getElementById('status-text').textContent = d.running ? 'Работает' : 'Остановлен';
-  if (d.uptime) document.getElementById('uptime').textContent = 'С ' + d.uptime;
+  const dot = document.getElementById('dot');
+  const label = document.getElementById('status-text');
+  const uptimeEl = document.getElementById('uptime');
+  if (d.dev_hint) {
+    dot.className = 'dot';
+    dot.style.background = '#6b7280';
+    dot.style.boxShadow = 'none';
+    label.textContent = 'Нет systemd';
+    uptimeEl.textContent = d.message || 'Запуск бота только на Linux-сервере';
+    return;
+  }
+  dot.style.background = '';
+  dot.style.boxShadow = '';
+  dot.className = 'dot ' + (d.running ? 'on' : 'off');
+  label.textContent = d.running ? 'Работает' : 'Остановлен';
+  uptimeEl.textContent = d.uptime ? ('С ' + d.uptime) : '';
 }
 
 async function loadLogs() {
   const d = await api('/api/logs?lines=80');
   const box = document.getElementById('logs');
+  if (d.dev_hint) {
+    box.textContent = 'Логи journalctl только на сервере с systemd';
+    return;
+  }
+  if (typeof d.logs !== 'string') {
+    box.textContent = d.error || 'Нет данных';
+    return;
+  }
   const lines = d.logs.split('\n').map(l => {
     const s = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if (/ERROR|Traceback|error/.test(l)) return `<span style="color:#fc8181">${s}</span>`;

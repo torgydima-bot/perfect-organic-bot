@@ -1,27 +1,57 @@
 import sys
 import os
 import re
-sys.path.insert(0, "/opt/bot/telegram_bot")
-
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+import shutil
+import functools
 import subprocess
 import json
 import base64
 import requests
-import functools
 from datetime import datetime
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
-app.secret_key = "perfectorganic2026"
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from werkzeug.exceptions import RequestEntityTooLarge
 
-DASHBOARD_PASSWORD = "admin123"
-BOT_DIR = "/opt/bot/telegram_bot"
-SERVICE_NAME = "perfectorganic-bot"
-UPLOADS_DIR = "/opt/dashboard/uploads"
+_DASH_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(_DASH_DIR)
+
+
+def _resolve_bot_dir():
+    env = os.environ.get("BOT_DIR", "").strip()
+    if env:
+        return env
+    sibling = os.path.join(_REPO_ROOT, "telegram_bot")
+    if os.path.isdir(sibling):
+        return sibling
+    return "/opt/bot/telegram_bot"
+
+
+BOT_DIR = _resolve_bot_dir()
+if BOT_DIR not in sys.path:
+    sys.path.insert(0, BOT_DIR)
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "perfectorganic2026")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+if os.environ.get("SESSION_COOKIE_SECURE", "").lower() in ("1", "true", "yes"):
+    app.config["SESSION_COOKIE_SECURE"] = True
+
+_max_mb = int(os.environ.get("MAX_UPLOAD_MB", "16"))
+app.config["MAX_CONTENT_LENGTH"] = _max_mb * 1024 * 1024
+
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "admin123")
+SERVICE_NAME = os.environ.get("BOT_SYSTEMD_SERVICE", "perfectorganic-bot")
+UPLOADS_DIR = os.environ.get("DASHBOARD_UPLOADS_DIR", os.path.join(_DASH_DIR, "uploads"))
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 STATS_FILE = os.path.join(BOT_DIR, "post_stats.json")
-CUSTOM_PROMPTS_FILE = "/opt/dashboard/custom_prompts.json"
+CUSTOM_PROMPTS_FILE = os.environ.get(
+    "CUSTOM_PROMPTS_FILE", os.path.join(_DASH_DIR, "custom_prompts.json")
+)
+
+MAX_PHOTO_UPLOAD_BYTES = min(15 * 1024 * 1024, app.config["MAX_CONTENT_LENGTH"])
+_ALLOWED_PHOTO_EXT = frozenset({".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"})
 
 
 def load_custom_prompts():
@@ -238,9 +268,19 @@ def login_required(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("logged_in"):
+            # Иначе fetch(...).json() на /api/* получает HTML редиректа — загрузка фото «ломается» без сообщения
+            if request.path.startswith("/api/"):
+                return jsonify({"ok": False, "error": "Сессия истекла — войдите снова"}), 401
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_too_large(_e):
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": f"Файл слишком большой (лимит {_max_mb} МБ)"}), 413
+    return "Файл слишком большой", 413
 
 
 def run_cmd(cmd):
@@ -308,18 +348,29 @@ def index():
 @app.route("/api/status")
 @login_required
 def api_status():
+    if not shutil.which("systemctl"):
+        return jsonify(
+            {
+                "running": None,
+                "uptime": "",
+                "dev_hint": True,
+                "message": "systemctl не найден (Windows или без systemd) — статус бота смотри на сервере",
+            }
+        )
     output = run_cmd(f"systemctl is-active {SERVICE_NAME}")
     is_running = output.strip() == "active"
     uptime = run_cmd(f"systemctl show {SERVICE_NAME} --property=ActiveEnterTimestamp --value").strip()
-    return jsonify({"running": is_running, "uptime": uptime})
+    return jsonify({"running": is_running, "uptime": uptime, "dev_hint": False})
 
 
 @app.route("/api/logs")
 @login_required
 def api_logs():
     lines = request.args.get("lines", 80)
+    if not shutil.which("journalctl"):
+        return jsonify({"logs": "", "dev_hint": True})
     logs = run_cmd(f"journalctl -u {SERVICE_NAME} -n {lines} --no-pager -o short-iso")
-    return jsonify({"logs": logs})
+    return jsonify({"logs": logs, "dev_hint": False})
 
 
 @app.route("/api/restart", methods=["POST"])
@@ -887,7 +938,13 @@ def api_upload_photo():
     file = request.files["photo"]
     if not file.filename:
         return jsonify({"ok": False, "error": "Пустое имя файла"})
-    b64 = base64.b64encode(file.read()).decode()
+    ext = os.path.splitext(file.filename.lower())[1]
+    if ext and ext not in _ALLOWED_PHOTO_EXT:
+        return jsonify({"ok": False, "error": f"Неподдерживаемый формат ({ext}). Используй JPG, PNG, WebP, GIF."})
+    raw = file.read()
+    if len(raw) > MAX_PHOTO_UPLOAD_BYTES:
+        return jsonify({"ok": False, "error": "Файл больше 15 МБ"}), 413
+    b64 = base64.b64encode(raw).decode()
     return jsonify({"ok": True, "photo_b64": b64})
 
 

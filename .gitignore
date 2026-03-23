@@ -31,6 +31,9 @@ venv/
 .venv/
 env/
 
+# Загрузки админки (если появятся файлы)
+dashboard/uploads/
+
 # IDE
 .vscode/
 .idea/

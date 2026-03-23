@@ -8,6 +8,8 @@ import os
 import sys
 
 BOT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BOT_DIR, "config.py")
+CONFIG_EXAMPLE = os.path.join(BOT_DIR, "config.example.py")
 WATCH_FILES = ['bot.py', 'content_plan.py', 'products.py', 'config.py']
 DEBOUNCE = 4   # сек ожидания после последнего изменения
 CRASH_WAIT = 5 # сек паузы если бот упал сам
@@ -46,6 +48,16 @@ print("=" * 50)
 print("  Perfect Organic Bot — автоперезапуск")
 print("  Закрой окно чтобы остановить всё")
 print("=" * 50)
+
+if not os.path.isfile(CONFIG_PATH):
+    print("\n❌ Нет файла config.py")
+    if os.path.isfile(CONFIG_EXAMPLE):
+        print(f"   Скопируй: {CONFIG_EXAMPLE}")
+        print(f"   В файл:   {CONFIG_PATH}")
+        print("   Заполни BOT_TOKEN и OWNER_CHAT_ID.\n")
+    else:
+        print("   Создай config.py с BOT_TOKEN и настройками (см. документацию).\n")
+    sys.exit(1)
 
 mtimes = {f: get_mtime(f) for f in WATCH_FILES}
 start_bot()
