@@ -41,7 +41,7 @@ if os.environ.get("SESSION_COOKIE_SECURE", "").lower() in ("1", "true", "yes"):
 _max_mb = int(os.environ.get("MAX_UPLOAD_MB", "16"))
 app.config["MAX_CONTENT_LENGTH"] = _max_mb * 1024 * 1024
 
-DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "admin123")
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "SOP274@")
 SERVICE_NAME = os.environ.get("BOT_SYSTEMD_SERVICE", "perfectorganic-bot")
 UPLOADS_DIR = os.environ.get("DASHBOARD_UPLOADS_DIR", os.path.join(_DASH_DIR, "uploads"))
 os.makedirs(UPLOADS_DIR, exist_ok=True)
