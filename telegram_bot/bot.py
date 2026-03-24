@@ -34,6 +34,8 @@ from content_plan import (WEEKLY_PLAN, POST_TYPE_LABELS,
                           HEALTH_PROGRAMS, HEALTH_PROGRAM_URLS)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Снижаем шум и исключаем утечку URL с токеном в INFO-логах httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 oai = AsyncOpenAI(api_key=OPENAI_API_KEY)  # только для gpt-image-1
 groq = AsyncOpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")

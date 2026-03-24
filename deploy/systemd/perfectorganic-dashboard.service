@@ -1,0 +1,30 @@
+[Unit]
+Description=Perfect Organic Dashboard (Flask)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dashboard
+ExecStart=/usr/bin/python3 /opt/dashboard/app.py
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/dashboard
+Environment=PYTHONUNBUFFERED=1
+Environment=FLASK_SECRET_KEY=CHANGE_ME_LONG_RANDOM
+Environment=DASHBOARD_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+Environment=SESSION_COOKIE_SECURE=0
+Environment=BOT_DIR=/opt/bot/telegram_bot
+Environment=BOT_SYSTEMD_SERVICE=perfectorganic-bot
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
