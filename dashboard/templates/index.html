@@ -216,7 +216,7 @@ hr { border: none; border-top: 1px solid #2d3250; margin: 16px 0; }
 
         <label>Текст поста</label>
         <textarea id="create-text" rows="14" placeholder="Введите текст поста или нажмите 'Сгенерировать'..." oninput="updateCharCount()"></textarea>
-        <div class="char-count" id="char-count">0 / 1300</div>
+        <div class="char-count" id="char-count">0 / 4096</div>
       </div>
 
       <!-- RIGHT: photo -->
@@ -500,8 +500,8 @@ function updateCharCount() {
   const text = document.getElementById('create-text').value;
   const len = text.length;
   const el = document.getElementById('char-count');
-  el.textContent = `${len} / 1300`;
-  el.className = 'char-count' + (len > 1300 ? ' over' : len > 1100 ? ' warn' : '');
+  el.textContent = `${len} / 4096`;
+  el.className = 'char-count' + (len > 4096 ? ' over' : len > 3800 ? ' warn' : '');
 }
 
 async function generateText() {

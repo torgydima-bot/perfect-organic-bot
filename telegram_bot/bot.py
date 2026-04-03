@@ -927,12 +927,22 @@ async def generate_text_post(post_type):
                 " Экспертный пост (понедельник): каждый раз новое приветствие и свежий угол темы; "
                 "не повторяй одни и те же вступления, заголовки и скелет текста от недели к неделе."
             )
+        _out_tokens = {
+            "sales": 2048,
+            "program": 1400,
+            "expert": 1400,
+            "viral": 1400,
+            "faq": 1200,
+            "lifestyle": 1200,
+            "partner": 1200,
+        }.get(post_type, 1200)
         response = await groq.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": _system},
                 {"role": "user", "content": prompt},
             ],
+            max_tokens=_out_tokens,
         )
         raw = response.choices[0].message.content.strip()
         if post_type == "viral":

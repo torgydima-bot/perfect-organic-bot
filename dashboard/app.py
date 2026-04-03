@@ -689,6 +689,23 @@ def api_save_prompt(post_type):
 
 # ─── AI Text generation ─────────────────────────────────────────────────────
 
+# Groq: слишком маленький max_tokens обрывает русский текст с HTML на полуслове.
+# Лимит обрезки на бэкенде — как у Telegram sendMessage (символы).
+TELEGRAM_MESSAGE_HTML_MAX = 4096
+
+
+def _groq_max_tokens(post_type: str) -> int:
+    return {
+        "sales": 2048,
+        "program": 1400,
+        "expert": 1400,
+        "viral": 1400,
+        "faq": 1200,
+        "lifestyle": 1200,
+        "partner": 1200,
+    }.get(post_type, 1200)
+
+
 @app.route("/api/generate_text", methods=["POST"])
 @login_required
 def api_generate_text():
@@ -906,10 +923,10 @@ def api_generate_text():
                     },
                     {"role": "user", "content": prompt},
                 ],
-                "max_tokens": 900 if post_type == "program" else 800,
+                "max_tokens": _groq_max_tokens(post_type),
                 "temperature": 0.8
             },
-            timeout=30
+            timeout=45
         )
         print(f"[Groq] status={r.status_code} body={r.text[:300]}")
         result = r.json()
@@ -923,9 +940,8 @@ def api_generate_text():
                 err_msg = str(result)[:300]
             return jsonify({"ok": False, "error": f"Groq: {err_msg}"})
         text = result["choices"][0]["message"]["content"]
-        max_len = 1280 if post_type == "program" else 1100
-        if len(text) > max_len:
-            text = text[:max_len - 20] + "..."
+        if len(text) > TELEGRAM_MESSAGE_HTML_MAX:
+            text = text[: TELEGRAM_MESSAGE_HTML_MAX - 20] + "..."
         return jsonify({"ok": True, "text": text})
     except requests.exceptions.Timeout:
         return jsonify({"ok": False, "error": "Groq не ответил за 30 секунд, попробуйте ещё раз"})
