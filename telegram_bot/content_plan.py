@@ -26,25 +26,28 @@ POST_TYPE_LABELS = {
 # ─── ПРОГРАММЫ ЗДОРОВЬЯ (с сайта perfect-org.ru/programi) ────────────────────
 # Воскресенье — программы по порядку из списка, после последней снова первая (см. current_program_for_sunday)
 
+# Порядок как на https://perfect-org.ru/programi (первая — сбалансированное питание)
 HEALTH_PROGRAM_URLS = [
-    {"url": "https://perfect-org.ru/pohudenie",        "title": "Снижение веса"},
-    {"url": "https://perfect-org.ru/detox",            "title": "Детокс-очищение"},
-    {"url": "https://perfect-org.ru/antistress",       "title": "Антистресс"},
-    {"url": "https://perfect-org.ru/imunitet",         "title": "Укрепление иммунитета"},
-    {"url": "https://perfect-org.ru/sustavy",          "title": "Здоровье суставов"},
-    {"url": "https://perfect-org.ru/serdce",           "title": "Здоровье сердца"},
-    {"url": "https://perfect-org.ru/zhenskoezdorove",  "title": "Женское здоровье"},
+    {"url": "https://perfect-org.ru/pitanie",          "title": "Сбалансированное питание"},
+    {"url": "https://perfect-org.ru/serdce",         "title": "Здоровое сердце и сосуды"},
+    {"url": "https://perfect-org.ru/sustavy",         "title": "Восстановление суставов"},
+    {"url": "https://perfect-org.ru/detox",           "title": "Detox-очищение"},
+    {"url": "https://perfect-org.ru/imunitet",        "title": "Сильный иммунитет"},
+    {"url": "https://perfect-org.ru/onko",            "title": "При онкологии"},
+    {"url": "https://perfect-org.ru/pohudenie",       "title": "Снижение веса"},
+    {"url": "https://perfect-org.ru/antistress",      "title": "Антистресс"},
+    {"url": "https://perfect-org.ru/diabed",         "title": "При диабете"},
+    {"url": "https://perfect-org.ru/alergiy",         "title": "При аллергии"},
+    {"url": "https://perfect-org.ru/zhenskoezdorove", "title": "Женское здоровье"},
     {"url": "https://perfect-org.ru/muzhskoezdorovye", "title": "Мужское здоровье"},
-    {"url": "https://perfect-org.ru/antivozrast",      "title": "Антивозраст"},
-    {"url": "https://perfect-org.ru/apatiydepressiy",  "title": "Апатия и депрессия"},
-    {"url": "https://perfect-org.ru/alergiy",          "title": "Аллергия"},
-    {"url": "https://perfect-org.ru/autoimmunnie",     "title": "Аутоиммунные заболевания"},
-    {"url": "https://perfect-org.ru/diabed",           "title": "Диабет"},
-    {"url": "https://perfect-org.ru/pochki",           "title": "Здоровье почек"},
-    {"url": "https://perfect-org.ru/zhashitapecheni",  "title": "Защита печени"},
-    {"url": "https://perfect-org.ru/sport",            "title": "Спорт и активность"},
-    {"url": "https://perfect-org.ru/naborvesa",        "title": "Набор веса"},
-    {"url": "https://perfect-org.ru/onko",             "title": "Онкопротекция"},
+    {"url": "https://perfect-org.ru/sport",          "title": "Спортивные программы"},
+    {"url": "https://perfect-org.ru/antivozrast",     "title": "Антивозраст"},
+    {"url": "https://perfect-org.ru/naborvesa",      "title": "Набор веса"},
+    {"url": "https://perfect-org.ru/zhashitapecheni", "title": "Защита печени"},
+    {"url": "https://perfect-org.ru/pochki",         "title": "Здоровье почек"},
+    {"url": "https://perfect-org.ru/apatiydepressiy", "title": "Апатия и депрессия"},
+    {"url": "https://perfect-org.ru/indiprogrammi",  "title": "Индивидуальные программы"},
+    {"url": "https://perfect-org.ru/autoimmunnie",   "title": "Аутоиммунные заболевания"},
 ]
 
 # Ключ в used_topics.json — индекс текущей программы для воскресенья (0 .. len-1), по кругу
@@ -84,7 +87,7 @@ def current_program_for_sunday(state_file: str) -> dict:
 
     n = len(HEALTH_PROGRAM_URLS)
     if n == 0:
-        return {"url": "https://perfect-org.ru/pohudenie", "title": "Снижение веса"}
+        return {"url": "https://perfect-org.ru/pitanie", "title": "Сбалансированное питание"}
 
     used = _load_used_topics_file(state_file)
     idx = used.get(PROGRAM_ROTATION_KEY, 0)

@@ -218,6 +218,7 @@ except Exception:
     current_program_for_sunday = None  # type: ignore
     advance_sunday_program_index = None  # type: ignore
     HEALTH_PROGRAM_URLS = [
+        {"url": "https://perfect-org.ru/pitanie",          "title": "Сбалансированное питание"},
         {"url": "https://perfect-org.ru/pohudenie",       "title": "Снижение веса"},
         {"url": "https://perfect-org.ru/detox",           "title": "Детокс-очищение"},
         {"url": "https://perfect-org.ru/antistress",      "title": "Антистресс"},
@@ -822,7 +823,7 @@ def api_generate_text():
             prog_title = prog["title"]
             prog_url = prog["url"]
         else:
-            prog_title = "Снижение веса"
+            prog_title = "Сбалансированное питание"
             prog_url = HEALTH_PROGRAM_URLS[0]["url"]
         scraped = scrape_program_page(prog_url)
         prog_text = scraped['description']
