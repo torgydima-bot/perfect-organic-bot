@@ -299,8 +299,17 @@ def handle_request_too_large(_e):
 
 
 def run_cmd(cmd):
+    """Выполняет shell-команду. На Windows без окна консоли (иначе мелькает cmd.exe)."""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        kw = {
+            "shell": True,
+            "capture_output": True,
+            "text": True,
+            "timeout": 30,
+        }
+        if os.name == "nt":
+            kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        result = subprocess.run(cmd, **kw)
         return result.stdout + result.stderr
     except Exception as e:
         return str(e)
@@ -958,6 +967,11 @@ def api_generate_photo():
     data = request.get_json()
     prompt = data.get("prompt", "")
     post_type = data.get("post_type", "expert")
+
+    if not TOGETHER_API_KEY:
+        return jsonify(
+            {"ok": False, "error": "TOGETHER_API_KEY не задан — проверь telegram_bot/config.py или переменные окружения"}
+        )
 
     if not prompt:
         default_prompts = {

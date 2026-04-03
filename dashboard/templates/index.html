@@ -608,7 +608,18 @@ function previewFromUrl() {
 
 function showPhotoPreview(src) {
   const preview = document.getElementById('photo-preview');
-  preview.innerHTML = `<img src="${src}" alt="preview" onerror="this.parentElement.innerHTML='<div class=placeholder>Ошибка загрузки</div>'">`;
+  preview.innerHTML = '';
+  const img = document.createElement('img');
+  img.alt = 'preview';
+  // Внешние URL часто режут превью по Referer — пробуем без реферера
+  if (/^https?:\/\//i.test(src)) {
+    img.referrerPolicy = 'no-referrer';
+  }
+  img.onerror = function () {
+    preview.innerHTML = '<div class="placeholder">Не удалось показать превью.<br><small>Если это ссылка — сайт может блокировать встраивание; загрузи файл с диска (JPG, PNG, WebP).</small></div>';
+  };
+  img.src = src;
+  preview.appendChild(img);
 }
 
 function clearPhoto() {
