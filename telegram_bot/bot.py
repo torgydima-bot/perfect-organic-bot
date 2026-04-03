@@ -154,6 +154,105 @@ def get_fresh_topic(post_type, topics_list):
     return chosen
 
 
+VIRAL_RECENT_FILE = os.path.join(os.path.dirname(__file__), "viral_recent_snippets.json")
+_MAX_VIRAL_SNIPPETS = 8
+
+
+def _viral_snippet_plain(html_text: str) -> str:
+    t = re.sub(r"<[^>]+>", " ", html_text)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t[:520]
+
+
+def load_viral_recent_snippets() -> list[str]:
+    if not os.path.exists(VIRAL_RECENT_FILE):
+        return []
+    try:
+        with open(VIRAL_RECENT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def append_viral_recent_snippet(html_text: str) -> None:
+    plain = _viral_snippet_plain(html_text)
+    if len(plain) < 50:
+        return
+    prev = load_viral_recent_snippets()
+    prev = [p for p in prev if p != plain]
+    prev.insert(0, plain)
+    prev = prev[:_MAX_VIRAL_SNIPPETS]
+    try:
+        with open(VIRAL_RECENT_FILE, "w", encoding="utf-8") as f:
+            json.dump(prev, f, ensure_ascii=False)
+    except Exception as e:
+        logging.warning(f"viral_recent_snippets: {e}")
+
+
+def _build_viral_user_prompt(topic: str, cta_note: str) -> str:
+    """Разные структуры + не повторять недавние посты."""
+    recent = load_viral_recent_snippets()
+    recent_block = ""
+    if recent:
+        chunks = []
+        for s in recent[:6]:
+            frag = s[:400] + ("…" if len(s) > 400 else "")
+            chunks.append(f"«{frag}»")
+        recent_block = (
+            "\nНЕДАВНИЕ ПОСТЫ В КАНАЛЕ — не копируй их заголовки, заход, порядок абзацев и набор продуктов:\n"
+            + "\n---\n".join(chunks)
+        )
+    anti = (
+        "\n\nОБЯЗАТЕЛЬНО:\n"
+        "- Только живой русский язык. Без штампов: «ключом к решению проблем», «секрет успеха», «уникальный подход», "
+        "«революция в питании», «играет решающую роль».\n"
+        "- Не вставляй посторонние символы, латиницу внутри русских слов, иероглифы, «мусорные» слоги.\n"
+        "- Каждый текст — оригинальный: другой заход к теме, другие примеры, другой ритм; "
+        "не шаблон «усталость → дефицит → список одних и тех же продуктов» каждый раз.\n"
+    )
+    if recent_block:
+        anti += recent_block + "\n"
+
+    v = random.randint(1, 4)
+    if v == 1:
+        body = (
+            f"Напиши вирусный пост для Telegram канала Perfect Organic.\n"
+            f"Тема: «{topic}»\n"
+            f"Структура:\n"
+            f"1) Начни с неожиданного факта или короткой бытовой ситуации (2–3 предложения), не с избитого «все устали».\n"
+            f"2) Свяжи с витаминами/минералами конкретно, без воды.\n"
+            f"3) 3–4 продукта в еде с эмодзи ✅ — выбери разнообразные, не повторяй набор из недавних постов выше.\n"
+            f"4) Короткий вывод в <b>...</b> — тёплый, без вопроса в конце.\n"
+            f"Без брендов добавок; только еда и общие формулировки про нутриенты. 200–230 слов. {cta_note}"
+        )
+    elif v == 2:
+        body = (
+            f"Напиши вирусный пост для Perfect Organic.\n"
+            f"Тема: «{topic}»\n"
+            f"Формат «миф → правда»: сначала заблуждение в <b>...</b>, затем короткое ясное опровержение, "
+            f"потом блок «что есть» (3–4 пункта ✅), финал — мотивация без канцелярита.\n"
+            f"Не повторяй вступления прошлых постов. 200–230 слов. {cta_note}"
+        )
+    elif v == 3:
+        body = (
+            f"Напиши вирусный пост для Perfect Organic.\n"
+            f"Тема: «{topic}»\n"
+            f"Начни с цифры, сравнения или яркого заголовка в <b>...</b>. Потом 2 абзаца пользы, "
+            f"затем менее заезженные примеры продуктов с ✅, финал — один сильный <b>...</b>.\n"
+            f"Избегай цепочки «симптомы дефицита → ужасы → список». 200–230 слов. {cta_note}"
+        )
+    else:
+        body = (
+            f"Напиши вирусный пост для Perfect Organic.\n"
+            f"Тема: «{topic}»\n"
+            f"Короткие абзацы; один риторический вопрос только в начале, затем ответ и польза; "
+            f"3–4 продукта с ✅; заверши обобщением в <b>...</b>.\n"
+            f"Раскрой тему с новой стороны. 200–230 слов. {cta_note}"
+        )
+    return body + anti
+
+
 # ─── Утилиты ────────────────────────────────────────────────────────────────
 
 def load_posted_ids():
@@ -647,21 +746,7 @@ async def generate_text_post(post_type):
         _variant = random.choice(_VIRAL_PERSON_VARIANTS)
         generate_text_post._last_image_prompt = build_viral_photo1_prompt(topic, _variant)
         generate_text_post._last_image_prompt2 = build_viral_photo2_prompt(topic, _variant)
-        prompt = (
-            f"Напиши вирусный пост для Telegram канала Perfect Organic.\n"
-            f"Тема: «{topic}»\n"
-            f"Структура (строго по порядку):\n"
-            f"1. Крючок в <b>...</b>: симптомы нехватки витаминов/минералов — усталость, "
-            f"плохое настроение, проблемы с зубами, частые болезни (1-2 предложения)\n"
-            f"2. К чему приводит дефицит — конкретные последствия для здоровья и жизни (2-3 предложения с фактами)\n"
-            f"3. Как приём витаминов и минералов возвращает энергию, настроение и здоровье (2-3 предложения)\n"
-            f"4. В каких продуктах питания содержится этот витамин/минерал — назови 3-4 конкретных продукта "
-            f"с пояснением пользы (список с эмодзи ✅)\n"
-            f"5. Мотивирующий вывод в <b>...</b> — призыв заботиться о себе, без вопросов к аудитории\n"
-            f"Стиль: живой, эмпатичный, полезный. Давай читателям реальную ценность! С эмодзи.\n"
-            f"Не упоминай конкретные бренды или продукты. Говори о витаминах и минералах в еде.\n"
-            f"200-230 слов. {CTA_NOTE}"
-        )
+        prompt = _build_viral_user_prompt(topic, CTA_NOTE)
         _viral_overrides = load_prompt_overrides()
         if _viral_overrides.get("viral_img1"):
             generate_text_post._last_image_prompt = _viral_overrides["viral_img1"].replace("{topic}", topic)
@@ -815,29 +900,44 @@ async def generate_text_post(post_type):
     generate_text_post._last_text_prompt = prompt
 
     try:
+        _system = (
+            "Ты копирайтер Telegram-канала Perfect Organic. "
+            "СТРОГО пиши ТОЛЬКО на русском языке — НУЛЕВАЯ толерантность к английским словам в тексте. "
+            "Это включает: supplement→добавка, energy→энергия, natural→натуральный, "
+            "balance→баланс, health→здоровье, boost→усиление, wellness→самочувствие, "
+            "detox→детокс, extract→экстракт, formula→формула, complex→комплекс. "
+            "Используй ТОЛЬКО кириллицу — никаких латинских букв в теле поста. "
+            "Официальные названия продуктов Perfect Organic (GoodBak, Alfa XT и др.) "
+            "используй только в именительном падеже как имя собственное, без пояснений на латинице. "
+            "Никаких HTML-тегов кроме <b>. Отвечай готовым текстом без вводных фраз. "
+            "КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать китайские, японские или корейские иероглифы. "
+            "ВАЖНО: между каждым абзацем обязательно оставляй ПУСТУЮ строку (двойной перенос строки)."
+        )
+        if post_type == "viral":
+            _system += (
+                " Вирусный пост: каждый раз новая подача; запрещены шаблоны вроде «ключом к решению проблем», "
+                "бессмысленные слоги и любые не-русские вставки внутри фраз."
+            )
         response = await groq.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Ты копирайтер Telegram-канала Perfect Organic. "
-                        "СТРОГО пиши ТОЛЬКО на русском языке — НУЛЕВАЯ толерантность к английским словам в тексте. "
-                        "Это включает: supplement→добавка, energy→энергия, natural→натуральный, "
-                        "balance→баланс, health→здоровье, boost→усиление, wellness→самочувствие, "
-                        "detox→детокс, extract→экстракт, formula→формула, complex→комплекс. "
-                        "Используй ТОЛЬКО кириллицу — никаких латинских букв в теле поста. "
-                        "Официальные названия продуктов Perfect Organic (GoodBak, Alfa XT и др.) "
-                        "используй только в именительном падеже как имя собственное, без пояснений на латинице. "
-                        "Никаких HTML-тегов кроме <b>. Отвечай готовым текстом без вводных фраз. "
-                        "КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать китайские, японские или корейские иероглифы. "
-                        "ВАЖНО: между каждым абзацем обязательно оставляй ПУСТУЮ строку (двойной перенос строки)."
-                    ),
-                },
+                {"role": "system", "content": _system},
                 {"role": "user", "content": prompt},
             ],
         )
         raw = response.choices[0].message.content.strip()
+        if post_type == "viral":
+            raw = re.sub(
+                r"(?i)\bключ(ом)?\s+к\s+решен(?:ию|ии)\s+проблем[аы.]?\b[,.\s]*",
+                "",
+                raw,
+            )
+            raw = re.sub(r"(?i)\bироглибы\b", "", raw)
+            raw = re.sub(
+                r"(?i)\s*—\s*ключ(ом)?\s+к\s+[^\n.!?]{0,80}",
+                "",
+                raw,
+            )
         # Убираем китайские/японские/корейские иероглифы если AI случайно их вставил
         raw = re.sub(r'[\u3000-\u9fff\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uf900-\ufaff]+', '', raw)
         # Заменяем частые английские слова на русские (вне HTML-тегов)
@@ -1077,6 +1177,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=TARGET_CHANNEL, text=data["text"],
                                                parse_mode='HTML', reply_markup=ch_kb, disable_web_page_preview=True)
             save_posted_id(data["post_id"])
+            if data.get("post_type") == "viral":
+                append_viral_recent_snippet(data.get("text", ""))
             pending.pop(owner_id, None)
             await _safe_edit(query, "✅ Пост опубликован в канал!")
         except Exception as e:
@@ -1624,6 +1726,9 @@ async def _publish_saved_post(bot, weekday: int) -> bool:
     else:
         await bot.send_message(chat_id=TARGET_CHANNEL, text=data["text"],
                                parse_mode='HTML', reply_markup=ch_kb, disable_web_page_preview=True)
+    ptype = data.get("post_type") or WEEKLY_PLAN.get(weekday)
+    if ptype == "viral":
+        append_viral_recent_snippet(data.get("text", ""))
     delete_saved_post(weekday)
     return True
 
