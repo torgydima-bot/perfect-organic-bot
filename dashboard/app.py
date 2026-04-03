@@ -213,8 +213,10 @@ OWNER_TG_LINK = "https://t.me/DmitriyPO"
 ASK_BUTTON = {"inline_keyboard": [[{"text": "💬 Задать вопрос", "url": OWNER_TG_LINK}]]}
 
 try:
-    from content_plan import HEALTH_PROGRAM_URLS
+    from content_plan import HEALTH_PROGRAM_URLS, current_program_for_sunday, advance_sunday_program_index
 except Exception:
+    current_program_for_sunday = None  # type: ignore
+    advance_sunday_program_index = None  # type: ignore
     HEALTH_PROGRAM_URLS = [
         {"url": "https://perfect-org.ru/pohudenie",       "title": "Снижение веса"},
         {"url": "https://perfect-org.ru/detox",           "title": "Детокс-очищение"},
@@ -490,6 +492,11 @@ def api_save_post():
     posts = load_saved_posts()
     posts[str(day)] = entry
     write_saved_posts(posts)
+    if post_type == "program" and advance_sunday_program_index:
+        try:
+            advance_sunday_program_index(os.path.join(BOT_DIR, "used_topics.json"))
+        except Exception:
+            pass
     return jsonify({"ok": True, "message": f"Пост на {WEEKDAYS[day]} сохранён"})
 
 
@@ -554,6 +561,11 @@ def api_publish_now():
 
     result = r.json()
     if result.get("ok"):
+        if post_type == "program" and advance_sunday_program_index:
+            try:
+                advance_sunday_program_index(os.path.join(BOT_DIR, "used_topics.json"))
+            except Exception:
+                pass
         msg_id = result.get("result", {}).get("message_id")
         if msg_id:
             stats = load_stats()
@@ -796,13 +808,22 @@ def api_generate_text():
                          adapted, flags=re.IGNORECASE)
         return jsonify({"ok": True, "text": adapted, "photo_url": photo_url, "post_id": post['id']})
 
-    # Для program — скрапим сайт и строим промпт из реального текста
+    # Для program — по кругу из HEALTH_PROGRAM_URLS (как у бота); явная тема в поле = ручной выбор
     if post_type == "program":
-        prog_title = topic or "Снижение веса"
-        prog_url = next(
-            (p["url"] for p in HEALTH_PROGRAM_URLS if p["title"].lower() == prog_title.lower()),
-            HEALTH_PROGRAM_URLS[0]["url"]
-        )
+        _state = os.path.join(BOT_DIR, "used_topics.json")
+        if topic and str(topic).strip():
+            prog_title = str(topic).strip()
+            prog_url = next(
+                (p["url"] for p in HEALTH_PROGRAM_URLS if p["title"].lower() == prog_title.lower()),
+                HEALTH_PROGRAM_URLS[0]["url"],
+            )
+        elif current_program_for_sunday:
+            prog = current_program_for_sunday(_state)
+            prog_title = prog["title"]
+            prog_url = prog["url"]
+        else:
+            prog_title = "Снижение веса"
+            prog_url = HEALTH_PROGRAM_URLS[0]["url"]
         scraped = scrape_program_page(prog_url)
         prog_text = scraped['description']
         if prog_text:

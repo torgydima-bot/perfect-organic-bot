@@ -31,7 +31,8 @@ from content_plan import (WEEKLY_PLAN, POST_TYPE_LABELS,
                           LIFESTYLE_TOPICS, LIFESTYLE_PHOTO_PROMPT, LIFESTYLE_PHOTO_PROMPTS,
                           _LIFESTYLE_PRODUCTION_TOPICS,
                           PARTNER_TOPICS, PARTNER_PHOTO_PROMPT, PARTNER_PHOTO_PROMPTS,
-                          HEALTH_PROGRAMS, HEALTH_PROGRAM_URLS)
+                          HEALTH_PROGRAMS, HEALTH_PROGRAM_URLS,
+                          current_program_for_sunday, advance_sunday_program_index)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # Снижаем шум и исключаем утечку URL с токеном в INFO-логах httpx
@@ -119,6 +120,10 @@ def delete_saved_post(weekday):
 USED_TOPICS_FILE = "used_topics.json"
 
 
+def _used_topics_state_path() -> str:
+    return os.path.join(os.path.dirname(__file__), USED_TOPICS_FILE)
+
+
 def get_fresh_topic(post_type, topics_list):
     """Возвращает тему, которая ещё не использовалась. Сбрасывает цикл когда все исчерпаны."""
     used = {}
@@ -132,7 +137,12 @@ def get_fresh_topic(post_type, topics_list):
         if isinstance(t, tuple):
             return t[0]
         if isinstance(t, dict):
-            return t.get("condition", str(id(t)))
+            return (
+                t.get("url")
+                or t.get("condition")
+                or t.get("title")
+                or str(id(t))
+            )
         return t
     all_keys = [_topic_key(t) for t in topics_list]
     available = [topics_list[i] for i, k in enumerate(all_keys) if k not in used_keys]
@@ -837,7 +847,7 @@ async def generate_text_post(post_type):
             f"200-250 слов. {CTA_NOTE}"
         )
     elif post_type == "program":
-        prog = get_fresh_topic("health_program_url", HEALTH_PROGRAM_URLS)
+        prog = current_program_for_sunday(_used_topics_state_path())
         prog_title = prog["title"]
         prog_url = prog["url"]
         _post_topic = prog_title
@@ -1179,6 +1189,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             save_posted_id(data["post_id"])
             if data.get("post_type") == "viral":
                 append_viral_recent_snippet(data.get("text", ""))
+            if data.get("post_type") == "program":
+                advance_sunday_program_index(_used_topics_state_path())
             pending.pop(owner_id, None)
             await _safe_edit(query, "✅ Пост опубликован в канал!")
         except Exception as e:
@@ -1190,6 +1202,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Для отзывов фиксируем post_id чтобы не повторялся
         if data.get("post_type") == "review" and data.get("post_id"):
             save_posted_id(data["post_id"])
+        if data.get("post_type") == "program":
+            advance_sunday_program_index(_used_topics_state_path())
         pending.pop(owner_id, None)
         next_weekday = weekday + 1
         if next_weekday > 6:
@@ -1220,6 +1234,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_post_for_day(weekday, data)
         if data.get("post_type") == "review" and data.get("post_id"):
             save_posted_id(data["post_id"])
+        if post_type == "program":
+            advance_sunday_program_index(_used_topics_state_path())
         pending.pop(owner_id, None)
         day_name = DAY_NAMES[weekday]
         type_label = POST_TYPE_LABELS.get(post_type, post_type)

@@ -24,7 +24,7 @@ POST_TYPE_LABELS = {
 }
 
 # ─── ПРОГРАММЫ ЗДОРОВЬЯ (с сайта perfect-org.ru/programi) ────────────────────
-# Воскресенье — пост по конкретной программе, чередуем по кругу
+# Воскресенье — программы по порядку из списка, после последней снова первая (см. current_program_for_sunday)
 
 HEALTH_PROGRAM_URLS = [
     {"url": "https://perfect-org.ru/pohudenie",        "title": "Снижение веса"},
@@ -46,6 +46,80 @@ HEALTH_PROGRAM_URLS = [
     {"url": "https://perfect-org.ru/naborvesa",        "title": "Набор веса"},
     {"url": "https://perfect-org.ru/onko",             "title": "Онкопротекция"},
 ]
+
+# Ключ в used_topics.json — индекс текущей программы для воскресенья (0 .. len-1), по кругу
+PROGRAM_ROTATION_KEY = "_sunday_program_index"
+
+
+def _load_used_topics_file(state_file: str) -> dict:
+    import json
+    import os
+
+    if not os.path.isfile(state_file):
+        return {}
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_used_topics_file(state_file: str, used: dict) -> None:
+    import json
+    import os
+
+    d = os.path.dirname(os.path.abspath(state_file))
+    if d:
+        os.makedirs(d, exist_ok=True)
+    with open(state_file, "w", encoding="utf-8") as f:
+        json.dump(used, f, ensure_ascii=False, indent=2)
+
+
+def current_program_for_sunday(state_file: str) -> dict:
+    """
+    Текущая программа по очереди (без сдвига индекса).
+    Нужна для превью и «Другой вариант» — та же программа, пока не опубликовали/не сохранили в очередь.
+    """
+    import os
+
+    n = len(HEALTH_PROGRAM_URLS)
+    if n == 0:
+        return {"url": "https://perfect-org.ru/pohudenie", "title": "Снижение веса"}
+
+    used = _load_used_topics_file(state_file)
+    idx = used.get(PROGRAM_ROTATION_KEY, 0)
+    try:
+        idx = int(idx) % n
+    except (TypeError, ValueError):
+        idx = 0
+    return dict(HEALTH_PROGRAM_URLS[idx])
+
+
+def advance_sunday_program_index(state_file: str) -> None:
+    """Вызывать после публикации или сохранения воскресного поста программы — переход к следующей по списку."""
+    import os
+
+    n = len(HEALTH_PROGRAM_URLS)
+    if n == 0:
+        return
+
+    used = _load_used_topics_file(state_file)
+    idx = used.get(PROGRAM_ROTATION_KEY, 0)
+    try:
+        idx = int(idx) % n
+    except (TypeError, ValueError):
+        idx = 0
+    used[PROGRAM_ROTATION_KEY] = (idx + 1) % n
+    try:
+        _save_used_topics_file(state_file, used)
+    except Exception:
+        pass
+
+
+# Обратная совместимость имён
+def pick_next_program_round_robin(state_file: str) -> dict:
+    return current_program_for_sunday(state_file)
+
 
 # ─── ЭКСПЕРТНЫЕ посты ────────────────────────────────────────────────────────
 # Пишем от лица врача-нутрициолога, генерируем фото доктора через gpt-image-1
