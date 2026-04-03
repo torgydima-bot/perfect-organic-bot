@@ -418,6 +418,10 @@ def scrape_product_page(url):
             paras = [p.get_text(strip=True) for p in soup.find_all('p')
                      if len(p.get_text(strip=True)) > 40]
             description = '\n'.join(paras[:10])[:1200]
+        if len((description or "").strip()) < 80:
+            ogd = soup.find("meta", property="og:description")
+            if ogd and ogd.get("content"):
+                description = (ogd.get("content") or "").strip()[:2000]
 
         return {'description': description, 'composition': composition, 'image_url': image_url}
     except Exception as e:
@@ -732,7 +736,12 @@ async def generate_sales_image_prompt(product_name: str, desc: str) -> str:
 
 async def generate_text_post(post_type):
     """Генерирует текст поста через Gemini."""
-    CTA_NOTE = "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки** для выделения — только <b>тег</b>. Без ссылок и призывов в конце — они будут добавлены отдельно. Никаких других HTML-тегов кроме <b>. Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами."
+    CTA_NOTE = (
+        "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки** для выделения — только <b>тег</b>. "
+        "Без ссылок и призывов в конце — они будут добавлены отдельно. Никаких других HTML-тегов кроме <b>. "
+        "Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами. "
+        "Между абзацами всегда пустая строка (два переноса подряд), иначе в Telegram текст слипается в одну простыню."
+    )
 
     generate_text_post._last_image_prompt = None  # сбрасываем для каждого поста
     generate_text_post._last_is_mineral_viral = False
@@ -799,8 +808,8 @@ async def generate_text_post(post_type):
         else:
             product_name, product_url = "МультиМинералс74", SHOP_LINK
         product_info = scrape_product_page(product_url)
-        desc = product_info.get('description', '')[:1000]
-        composition = product_info.get('composition', '')[:500]
+        desc = product_info.get('description', '')[:2200]
+        composition = product_info.get('composition', '')[:800]
         # Убираем числовой суффикс из отображаемого названия
         # "Урологический сбор 1" → "Урологический сбор"
         display_name = re.sub(r'\s+\d+$', '', product_name)
@@ -816,16 +825,24 @@ async def generate_text_post(post_type):
             f"one of them holding a clean white supplement bottle with green label in their hands, "
             f"smiling naturally. Beautiful warm light, photorealistic, no text on image."
         )
-        comp_block = f"\nСостав продукта:\n{composition}\n" if composition else ""
+        comp_block = f"\n--- Состав (с сайта) ---\n{composition}\n" if composition else ""
+        facts = f"\n--- Карточка товара с сайта ---\n{desc}\n" if desc.strip() else ""
+        weak = not desc.strip()
         prompt = (
             f"Напиши продающий пост для Telegram канала Perfect Organic о продукте «{display_name}».\n"
-            + (f"Информация о продукте с сайта:\n{desc}\n{comp_block}\n" if desc else "")
-            + f"ВАЖНО: пиши ТОЛЬКО о конкретном продукте «{display_name}» на основе описания выше — не пиши обобщённо о 'минералах' или 'витаминах' в целом.\n"
-            f"Упомяни 2-3 ключевых компонента из состава и кратко объясни их пользу.\n"
-            f"Структура: первая строка — цепляющий заголовок с названием «{display_name}» в тегах <b>...</b>, затем боль/проблема → как этот продукт решает → 3-4 конкретные выгоды ✅ → итог.\n"
-            f"Стиль: эмоциональный, фокус на конкретном результате от этого продукта. С эмодзи.\n"
-            f"Выдели жирным: заголовок и название продукта в тексте.\n"
-            f"200-250 слов. {CTA_NOTE}"
+            f"{facts}{comp_block}\n"
+            + (
+                "ВНИМАНИЕ: с сайта мало текста — пиши сдержанно по названию и типу продукта, без громких клише.\n"
+                if weak
+                else ""
+            )
+            + "СТРОГО:\n"
+            "- Опирайся только на факты из блоков выше; не придумывай ингредиенты и показания.\n"
+            "- Без пустых штампов: «революционный продукт», «настоящее спасение», «очевидная польза» — если сильные слова, подкрепи конкретикой из карточки.\n"
+            "- Минимум 2 конкретные детали из описания или состава.\n"
+            f"- Структура: заголовок с «{display_name}» в <b>...</b> → кому/зачем по фактам → выгоды ✅ → короткий итог.\n"
+            f"Выдели жирным заголовок и название продукта в тексте.\n"
+            f"200-280 слов. {CTA_NOTE}"
         )
     elif post_type == "partner":
         topic = get_fresh_topic("partner", PARTNER_TOPICS)
@@ -926,6 +943,11 @@ async def generate_text_post(post_type):
             _system += (
                 " Экспертный пост (понедельник): каждый раз новое приветствие и свежий угол темы; "
                 "не повторяй одни и те же вступления, заголовки и скелет текста от недели к неделе."
+            )
+        if post_type == "sales":
+            _system += (
+                " Продающий пост: только факты из запроса (карточка товара); без маркетинговой воды и клише без опоры на текст. "
+                "Между абзацами — пустая строка."
             )
         _out_tokens = {
             "sales": 2048,

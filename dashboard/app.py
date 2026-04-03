@@ -164,10 +164,76 @@ def scrape_product_page(url):
         if not description:
             paras = [p.get_text(strip=True) for p in soup.find_all('p') if len(p.get_text(strip=True)) > 40]
             description = '\n'.join(paras[:15])[:2500]
+        if len((description or "").strip()) < 80:
+            ogd = soup.find("meta", property="og:description")
+            if ogd and ogd.get("content"):
+                description = (ogd.get("content") or "").strip()[:2500]
         return {'description': description, 'composition': composition}
     except Exception as e:
         print(f"[scrape] error: {e}")
         return {'description': '', 'composition': ''}
+
+
+def _normalize_paragraph_breaks(text: str) -> str:
+    """Telegram показывает новый абзац только после пустой строки — сдваиваем одиночные \\n."""
+    if not text:
+        return text
+    out = re.sub(r"(?<!\n)\n(?!\n)", "\n\n", text)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
+
+
+def _resolve_sales_product(topic: str, products: dict, aliases: dict):
+    """
+    Имя и URL товара для продающего поста.
+    Пустой topic — случайный продукт из каталога; иначе поиск по названию / алиасу / slug в URL.
+    """
+    import random
+
+    items = list(products.items())
+    t = (topic or "").strip()
+    if not t:
+        return random.choice(items)
+
+    tl = t.lower()
+
+    def strip_suffix(name: str) -> str:
+        return re.sub(r"\s+\d+$", "", name)
+
+    def canonical_for_url(url: str) -> str:
+        for n, u in products.items():
+            if u == url:
+                return strip_suffix(n)
+        return t
+
+    for name, url in products.items():
+        if name.lower() == tl:
+            return (strip_suffix(name), url)
+    for name, url in aliases.items():
+        if name.lower() == tl:
+            return (canonical_for_url(url), url)
+
+    matches = []
+    for name, url in products.items():
+        nl = name.lower()
+        if tl in nl or nl in tl:
+            matches.append((name, url, len(name)))
+    if matches:
+        matches.sort(key=lambda x: x[2])
+        name, url, _ = matches[0]
+        return (strip_suffix(name), url)
+
+    for name, url in aliases.items():
+        nl = name.lower()
+        if tl in nl or nl in tl:
+            return (canonical_for_url(url), url)
+
+    slug = tl.replace(" ", "-").replace("_", "-")
+    for name, url in products.items():
+        if url.rstrip("/").split("/")[-1].lower() == slug:
+            return (strip_suffix(name), url)
+
+    return random.choice(items)
 
 
 def get_review_posts(channel):
@@ -722,7 +788,12 @@ def api_generate_text():
     post_type = data.get("post_type", "expert")
     topic = data.get("topic", "")
 
-    cta_note = "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки**. Никаких других HTML-тегов кроме <b>. Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами."
+    cta_note = (
+        "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки**. "
+        "Никаких других HTML-тегов кроме <b> и одной ссылки в конце если указано. "
+        "Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами. "
+        "Между абзацами ВСЕГДА пустая строка (два переноса строки подряд) — в Telegram одиночный перенос не даёт новый абзац, текст «слипается»."
+    )
     _expert_state = os.path.join(BOT_DIR, EXPERT_RECENT_FILENAME)
     _expert_topic = topic or "польза витаминов и минералов"
     _expert_user = (
@@ -756,7 +827,7 @@ def api_generate_text():
             f"Стиль: эмоциональный, фокус на результате. С эмодзи.\n"
             f"В конце: <a href='{SHOP_LINK}'>Заказать сейчас</a>\n"
             f"200-250 слов. {cta_note}"
-        ),
+        ),  # перезаписывается ниже при успешном разборе каталога
         "faq": (
             f"Напиши пост в формате вопрос-ответ для Telegram канала Perfect Organic.\n"
             f"Тема: «{topic or 'витамин D'}»\n"
@@ -781,27 +852,41 @@ def api_generate_text():
         ),
     }
 
-    # Для sales — берём случайный продукт из каталога и скрапим его страницу
-    if post_type == "sales" and not topic:
+    # Для sales — всегда товар из каталога + скрапинг карточки (поле «тема» = подсказка по названию; пусто = случайный)
+    if post_type == "sales":
         try:
             sys.path.insert(0, os.path.join(BOT_DIR, "telegram_bot"))
-            from products import PRODUCTS
+            from products import PRODUCTS, PRODUCT_ALIASES
             if PRODUCTS:
-                import random as _rnd
-                product_name, product_url = _rnd.choice(list(PRODUCTS.items()))
-                display_name = re.sub(r'\s+\d+$', '', product_name)
+                product_name, product_url = _resolve_sales_product(topic, PRODUCTS, PRODUCT_ALIASES)
+                display_name = re.sub(r"\s+\d+$", "", product_name)
                 product_info = scrape_product_page(product_url)
-                desc = product_info.get('description', '')[:2000]
-                composition = product_info.get('composition', '')[:500]
-                comp_block = f"\nСостав продукта:\n{composition}\n" if composition else ""
+                desc = (product_info.get("description") or "")[:2800]
+                composition = (product_info.get("composition") or "")[:800]
+                comp_block = f"\n--- Состав (фрагмент с сайта) ---\n{composition}\n" if composition.strip() else ""
+                facts_block = (
+                    f"\n--- Текст карточки товара с сайта (опирайся на это, не выдумывай свойства) ---\n{desc}\n"
+                    if desc.strip()
+                    else ""
+                )
+                weak = not desc.strip()
                 prompts["sales"] = (
                     f"Напиши продающий пост для Telegram канала Перфект Органик о продукте «{display_name}».\n"
-                    + (f"Информация о продукте с сайта:\n{desc}\n{comp_block}\n" if desc else "")
-                    + f"ВАЖНО: пиши ТОЛЬКО о конкретном продукте «{display_name}» на основе описания и состава выше — не придумывай, используй реальные данные с сайта.\n"
-                    f"Упомяни 2-3 ключевых компонента из состава и кратко объясни их пользу.\n"
-                    f"Структура: первая строка — цепляющий заголовок с «{display_name}» в тегах <b>...</b>, затем для кого этот продукт → какие проблемы решает → 3-4 выгоды ✅ → итог.\n"
-                    f"В конце: <a href='{product_url}'>Заказать {display_name}</a>\n"
-                    f"200-250 слов. {cta_note}"
+                    f"{facts_block}{comp_block}\n"
+                    + (
+                        "ВНИМАНИЕ: с страницы почти не извлёкся текст — опиши нейтрально по названию и типу продукта, без громких клише.\n"
+                        if weak
+                        else ""
+                    )
+                    + "СТРОГО:\n"
+                    "- Пиши только из фактов из блока выше (описание и состав). Не придумывай новые ингредиенты и показания.\n"
+                    "- Запрещены пустые маркетинговые штампы: «революционный продукт», «настоящее спасение», «очевидная польза», "
+                    "«уникальная формула» — если используешь сильные слова, подкрепи их конкретикой из текста карточки.\n"
+                    "- Минимум 2 упоминания конкретики из карточки (компонент, назначение, форма выпуска, кому рекомендовано — если есть в тексте).\n"
+                    "- Между каждым логическим блоком ОБЯЗАТЕЛЬНО пустая строка (двойной перенос).\n"
+                    f"- Структура: заголовок с «{display_name}» в <b>...</b> → кому/зачем по фактам → выгоды ✅ из карточки → короткий вывод.\n"
+                    f"В конце ровно одна ссылка: <a href='{product_url}'>Заказать {display_name}</a>\n"
+                    f"200-280 слов. {cta_note}"
                 )
         except Exception as e:
             print(f"[sales product] error: {e}")
@@ -918,6 +1003,11 @@ def api_generate_text():
             " Экспертный пост: каждый раз новое приветствие и свежий угол; "
             "не клонируй предыдущие вступления и заголовки."
         )
+    if post_type == "sales":
+        _system_base += (
+            " Продающий пост: опирайся на факты из сообщения пользователя (карточка товара); "
+            "без воды и без клише без привязки к тексту. Между абзацами — пустая строка."
+        )
 
     try:
         r = requests.post(
@@ -949,6 +1039,7 @@ def api_generate_text():
                 err_msg = str(result)[:300]
             return jsonify({"ok": False, "error": f"Groq: {err_msg}"})
         text = result["choices"][0]["message"]["content"]
+        text = _normalize_paragraph_breaks(text)
         if len(text) > TELEGRAM_MESSAGE_HTML_MAX:
             text = text[: TELEGRAM_MESSAGE_HTML_MAX - 20] + "..."
         return jsonify({"ok": True, "text": text})
