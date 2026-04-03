@@ -4,6 +4,7 @@ import re
 import shutil
 import functools
 import subprocess
+import mimetypes
 import json
 import base64
 import requests
@@ -32,6 +33,7 @@ if BOT_DIR not in sys.path:
     sys.path.insert(0, BOT_DIR)
 
 app = Flask(__name__)
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "perfectorganic2026")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
