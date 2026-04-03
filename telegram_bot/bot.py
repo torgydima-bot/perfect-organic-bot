@@ -26,6 +26,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from config import *
 from content_plan import (WEEKLY_PLAN, POST_TYPE_LABELS,
                           EXPERT_TOPICS, DOCTOR_PHOTO_PROMPTS,
+                          EXPERT_RECENT_FILENAME, build_expert_user_prompt, expert_recent_append,
                           VIRAL_TOPICS, VIRAL_PHOTO_PROMPTS, VIRAL_PHOTO_PROMPT, VIRAL_MINERAL_PHOTO_PROMPT, VIRAL_MINERAL_KEYWORDS,
                           build_viral_image_prompt, build_viral_photo1_prompt, build_viral_photo2_prompt, _VIRAL_PERSON_VARIANTS,
                           LIFESTYLE_TOPICS, LIFESTYLE_PHOTO_PROMPT, LIFESTYLE_PHOTO_PROMPTS,
@@ -165,6 +166,7 @@ def get_fresh_topic(post_type, topics_list):
 
 
 VIRAL_RECENT_FILE = os.path.join(os.path.dirname(__file__), "viral_recent_snippets.json")
+EXPERT_RECENT_FILE = os.path.join(os.path.dirname(__file__), EXPERT_RECENT_FILENAME)
 _MAX_VIRAL_SNIPPETS = 8
 
 
@@ -739,15 +741,7 @@ async def generate_text_post(post_type):
     if post_type == "expert":
         topic = get_fresh_topic("expert", EXPERT_TOPICS)
         _post_topic = topic
-        prompt = (
-            f"Напиши экспертный пост для Telegram канала Perfect Organic от лица врача-нутрициолога.\n"
-            f"Тема: «{topic}»\n"
-            f"Пиши от первого лица: 'Я как нутрициолог...', 'Мои пациенты часто спрашивают...'\n"
-            f"Стиль: авторитетный, но дружелюбный, с эмодзи. Без сложных терминов.\n"
-            f"Структура: первая строка — придуманный тобой цепляющий заголовок по теме в тегах <b>...</b>, затем 3-4 абзаца пользы, личный вывод врача.\n"
-            f"Выдели жирным: заголовок и 2-3 ключевых факта в тексте.\n"
-            f"200-250 слов. {CTA_NOTE}"
-        )
+        prompt = build_expert_user_prompt(topic, CTA_NOTE, EXPERT_RECENT_FILE)
     elif post_type == "viral":
         topic = get_fresh_topic("viral", VIRAL_TOPICS)
         is_mineral_viral = any(kw in topic.lower() for kw in VIRAL_MINERAL_KEYWORDS)
@@ -927,6 +921,11 @@ async def generate_text_post(post_type):
             _system += (
                 " Вирусный пост: каждый раз новая подача; запрещены шаблоны вроде «ключом к решению проблем», "
                 "бессмысленные слоги и любые не-русские вставки внутри фраз."
+            )
+        if post_type == "expert":
+            _system += (
+                " Экспертный пост (понедельник): каждый раз новое приветствие и свежий угол темы; "
+                "не повторяй одни и те же вступления, заголовки и скелет текста от недели к неделе."
             )
         response = await groq.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -1189,6 +1188,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             save_posted_id(data["post_id"])
             if data.get("post_type") == "viral":
                 append_viral_recent_snippet(data.get("text", ""))
+            if data.get("post_type") == "expert":
+                expert_recent_append(EXPERT_RECENT_FILE, data.get("text", ""))
             if data.get("post_type") == "program":
                 advance_sunday_program_index(_used_topics_state_path())
             pending.pop(owner_id, None)
@@ -1745,6 +1746,8 @@ async def _publish_saved_post(bot, weekday: int) -> bool:
     ptype = data.get("post_type") or WEEKLY_PLAN.get(weekday)
     if ptype == "viral":
         append_viral_recent_snippet(data.get("text", ""))
+    if ptype == "expert":
+        expert_recent_append(EXPERT_RECENT_FILE, data.get("text", ""))
     delete_saved_post(weekday)
     return True
 

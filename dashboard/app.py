@@ -213,10 +213,20 @@ OWNER_TG_LINK = "https://t.me/DmitriyPO"
 ASK_BUTTON = {"inline_keyboard": [[{"text": "💬 Задать вопрос", "url": OWNER_TG_LINK}]]}
 
 try:
-    from content_plan import HEALTH_PROGRAM_URLS, current_program_for_sunday, advance_sunday_program_index
+    from content_plan import (
+        HEALTH_PROGRAM_URLS,
+        current_program_for_sunday,
+        advance_sunday_program_index,
+        EXPERT_RECENT_FILENAME,
+        build_expert_user_prompt,
+        expert_recent_append,
+    )
 except Exception:
     current_program_for_sunday = None  # type: ignore
     advance_sunday_program_index = None  # type: ignore
+    build_expert_user_prompt = None  # type: ignore
+    expert_recent_append = None  # type: ignore
+    EXPERT_RECENT_FILENAME = "expert_recent_snippets.json"
     HEALTH_PROGRAM_URLS = [
         {"url": "https://perfect-org.ru/pitanie",          "title": "Сбалансированное питание"},
         {"url": "https://perfect-org.ru/pohudenie",       "title": "Снижение веса"},
@@ -567,6 +577,11 @@ def api_publish_now():
                 advance_sunday_program_index(os.path.join(BOT_DIR, "used_topics.json"))
             except Exception:
                 pass
+        if post_type == "expert" and expert_recent_append:
+            try:
+                expert_recent_append(os.path.join(BOT_DIR, EXPERT_RECENT_FILENAME), text)
+            except Exception:
+                pass
         msg_id = result.get("result", {}).get("message_id")
         if msg_id:
             stats = load_stats()
@@ -682,16 +697,23 @@ def api_generate_text():
     topic = data.get("topic", "")
 
     cta_note = "ВАЖНО: для жирного текста используй ТОЛЬКО HTML-тег <b>слово</b>. ЗАПРЕЩЕНО использовать **звёздочки**. Никаких других HTML-тегов кроме <b>. Обязательно используй эмодзи 🌿✅💚🎯❤️⚡ в начале абзацев и рядом с ключевыми фактами."
+    _expert_state = os.path.join(BOT_DIR, EXPERT_RECENT_FILENAME)
+    _expert_topic = topic or "польза витаминов и минералов"
+    _expert_user = (
+        build_expert_user_prompt(_expert_topic, cta_note, _expert_state)
+        if build_expert_user_prompt
+        else (
+            f"Напиши экспертный пост для Telegram канала Perfect Organic от лица врача-нутрициолога.\n"
+            f"Тема: «{_expert_topic}»\n"
+            f"Пиши от первого лица. Стиль: авторитетный, но дружелюбный, с эмодзи.\n"
+            f"Структура: заголовок в <b>...</b>, 3-4 абзаца, вывод врача.\n"
+            f"200-250 слов. {cta_note}"
+        )
+    )
     prompts = {
         "expert": (
-            f"Напиши экспертный пост для Telegram канала Perfect Organic от лица врача-нутрициолога.\n"
-            f"Тема: «{topic or 'польза витаминов'}»\n"
-            f"Пиши от первого лица: 'Я как нутрициолог...', 'Мои пациенты часто спрашивают...'\n"
-            f"Стиль: авторитетный, но дружелюбный, с эмодзи. Без сложных терминов.\n"
-            f"Структура: первая строка — придуманный тобой цепляющий заголовок по теме в тегах <b>...</b>, затем 3-4 абзаца пользы, личный вывод врача.\n"
-            f"Выдели жирным: заголовок и 2-3 ключевых факта в тексте.\n"
-            f"В конце добавь: Подробнее — <a href='{SHOP_LINK}'>посетить сайт</a>\n"
-            f"200-250 слов. {cta_note}"
+            _expert_user
+            + f"\nВ конце добавь: Подробнее — <a href='{SHOP_LINK}'>посетить сайт</a>\n"
         ),
         "viral": (
             f"Напиши вирусный пост для Telegram канала Perfect Organic.\n"
@@ -855,6 +877,22 @@ def api_generate_text():
     if not GROQ_API_KEY:
         return jsonify({"ok": False, "error": "GROQ_API_KEY не настроен"})
 
+    _system_base = (
+        "Ты копирайтер Telegram-канала Перфект Органик. "
+        "СТРОГО пиши ТОЛЬКО на русском языке — НИКАКИХ английских слов, букв и символов в тексте. "
+        "Название бренда пиши ТОЛЬКО по-русски: Перфект Органик (НЕ Perfect Organic). "
+        "Используй ТОЛЬКО кириллицу. "
+        "Никаких markdown символов * или **. Для выделения используй ТОЛЬКО HTML тег <b>текст</b>. "
+        "Добавляй эмодзи для живости текста. "
+        "Между абзацами оставляй пустую строку. "
+        "Отвечай готовым текстом без вводных фраз."
+    )
+    if post_type == "expert":
+        _system_base += (
+            " Экспертный пост: каждый раз новое приветствие и свежий угол; "
+            "не клонируй предыдущие вступления и заголовки."
+        )
+
     try:
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -864,16 +902,7 @@ def api_generate_text():
                 "messages": [
                     {
                         "role": "system",
-                        "content": (
-                            "Ты копирайтер Telegram-канала Перфект Органик. "
-                            "СТРОГО пиши ТОЛЬКО на русском языке — НИКАКИХ английских слов, букв и символов в тексте. "
-                            "Название бренда пиши ТОЛЬКО по-русски: Перфект Органик (НЕ Perfect Organic). "
-                            "Используй ТОЛЬКО кириллицу. "
-                            "Никаких markdown символов * или **. Для выделения используй ТОЛЬКО HTML тег <b>текст</b>. "
-                            "Добавляй эмодзи для живости текста. "
-                            "Между абзацами оставляй пустую строку. "
-                            "Отвечай готовым текстом без вводных фраз."
-                        ),
+                        "content": _system_base,
                     },
                     {"role": "user", "content": prompt},
                 ],

@@ -7,6 +7,7 @@ telegram_bot/posted_ids.json
 telegram_bot/saved_posts.json
 telegram_bot/used_topics.json
 telegram_bot/viral_recent_snippets.json
+telegram_bot/expert_recent_snippets.json
 telegram_bot/C:Tempbot_log.txt
 
 # Фото продуктов (большие бинарные файлы)
