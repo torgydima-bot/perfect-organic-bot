@@ -1,0 +1,10 @@
+# Скопировать на сервер в:
+#   /etc/systemd/system/perfectorganic-dashboard.service.d/override.conf
+# Заменить значения, затем: systemctl daemon-reload && systemctl restart perfectorganic-dashboard
+#
+# Или выполнить: bash /opt/bot/deploy/systemd/install_dashboard_env.sh
+
+[Service]
+Environment=FLASK_SECRET_KEY=СГЕНЕРИРУЙ_openssl_rand_hex_32
+Environment=DASHBOARD_PASSWORD=ТВОЙ_ПАРОЛЬ
+Environment=SESSION_COOKIE_SECURE=0

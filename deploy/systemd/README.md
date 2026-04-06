@@ -51,6 +51,19 @@ ufw status
 - `StartLimit*` ограничивают "флаппинг", но не блокируют обычные рестарты.
 - Логи читать только через `journalctl`, так проще ловить причину падения.
 
+## 5a) Пароль и секрет одной командой (на сервере)
+
+После `git pull` в репозитории есть скрипт (запуск **от root**):
+
+```bash
+chmod +x /opt/bot/deploy/systemd/install_dashboard_env.sh
+bash /opt/bot/deploy/systemd/install_dashboard_env.sh
+```
+
+Скрипт сам создаст `/etc/systemd/system/perfectorganic-dashboard.service.d/override.conf`, сгенерирует `FLASK_SECRET_KEY`, спросит пароль (ввод не показывается), сделает `daemon-reload` и `restart`.
+
+Шаблон руками: `deploy/systemd/override.conf.example`.
+
 ## 6) Дашборд «не открывается» или сразу отваливается
 
 1. **Статус и ошибка Python:**  
