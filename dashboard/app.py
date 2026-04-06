@@ -855,7 +855,7 @@ def api_generate_text():
     # Для sales — всегда товар из каталога + скрапинг карточки (поле «тема» = подсказка по названию; пусто = случайный)
     if post_type == "sales":
         try:
-            sys.path.insert(0, os.path.join(BOT_DIR, "telegram_bot"))
+            # BOT_DIR уже указывает на каталог telegram_bot (см. _resolve_bot_dir)
             from products import PRODUCTS, PRODUCT_ALIASES
             if PRODUCTS:
                 product_name, product_url = _resolve_sales_product(topic, PRODUCTS, PRODUCT_ALIASES)

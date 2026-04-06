@@ -50,3 +50,20 @@ ufw status
 - `Restart=always` + `RestartSec=5` автоматически поднимут процесс после падения.
 - `StartLimit*` ограничивают "флаппинг", но не блокируют обычные рестарты.
 - Логи читать только через `journalctl`, так проще ловить причину падения.
+
+## 6) Дашборд «не открывается» или сразу отваливается
+
+1. **Статус и ошибка Python:**  
+   `systemctl status perfectorganic-dashboard --no-pager -l`  
+   `journalctl -u perfectorganic-dashboard -n 100 --no-pager`
+
+2. **Порт 8080:**  
+   `ss -tlnp | grep 8080` — слушает ли процесс.  
+   Если nginx проксирует на 8080, проверь `nginx -t` и логи сайта.
+
+3. **Запись в каталог бота:** в юните должны быть **оба** пути в `ReadWritePaths`:  
+   `/opt/dashboard` **и** `/opt/bot/telegram_bot` (иначе сохранение очереди/статистики даёт ошибки или краш).
+
+4. **Вход в админку по HTTPS:** если в юните `SESSION_COOKIE_SECURE=1`, а открываешь по **http://**, cookie сессии не сохранится — «как будто не работает». Либо HTTPS, либо `SESSION_COOKIE_SECURE=0`.
+
+5. **После `git pull`:** синтаксическая ошибка в `app.py` — сервис уйдёт в restart loop; смотри последние строки `journalctl`.

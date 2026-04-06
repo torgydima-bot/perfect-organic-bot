@@ -16,7 +16,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/dashboard
+# Дашборд пишет saved_posts.json, post_stats.json, used_topics.json в BOT_DIR — без этого путь «только чтение» и сервис падает/ошибки 500
+ReadWritePaths=/opt/dashboard /opt/bot/telegram_bot
 Environment=PYTHONUNBUFFERED=1
 Environment=FLASK_SECRET_KEY=CHANGE_ME_LONG_RANDOM
 Environment=DASHBOARD_PASSWORD=CHANGE_ME_STRONG_PASSWORD
